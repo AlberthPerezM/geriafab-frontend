@@ -1,0 +1,37 @@
+<main>
+  <section class="assistant-card single-face" aria-labelledby="assistant-title">
+    <div class="assistant-header">
+      <span class="assistant-kicker">Geriafab AI</span>
+      <h1 id="assistant-title">Asistente de voz</h1>
+    </div>
+
+    <div class="face-wrap">
+      <div class="voice-orb" [class.listening]="recognizing" [class.thinking]="isThinking" [class.speaking]="isSpeaking"
+        role="img" aria-label="Estado de voz del asistente">
+        <span class="orb-ring ring-one" aria-hidden="true"></span>
+        <span class="orb-core" aria-hidden="true">
+          <span class="orb-eye left" aria-hidden="true"></span>
+          <span class="orb-eye right" aria-hidden="true"></span>
+          <span class="orb-mouth" aria-hidden="true"></span>
+        </span>
+      </div>
+
+      <div class="voice-status" [class.listening]="recognizing" [class.thinking]="isThinking"
+        [class.speaking]="isSpeaking" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>{{ voiceStatusText }}</span>
+      </div>
+
+      <div class="mic-card">
+        <button class="mic-circle" type="button" (click)="toggleListening()" [attr.aria-label]="micLabel"
+          [attr.aria-pressed]="recognizing">
+          <span class="mic-icon" [class.active]="recognizing" [class.speaking]="isSpeaking" aria-hidden="true">
+            <span class="mic-stem"></span>
+          </span>
+        </button>
+        <strong class="mic-label">{{ micLabel }}</strong>
+        <span class="mic-sub">{{ micHelpText }}</span>
+      </div>
+    </div>
+  </section>
+</main>

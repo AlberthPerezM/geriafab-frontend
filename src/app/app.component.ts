@@ -39,7 +39,7 @@ type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
   styleUrl: './app.component.css'
 })
 export class AppComponent {
-  private readonly apiUrl = 'http://localhost:8000/api/gemini';
+  private readonly apiUrl = 'https://geriafab-backend-505v.onrender.com/api/gemini';
   private recognition: SpeechRecognitionInstance | null = null;
   private listenIgnoreUntil = 0;
   private speechInterrupted = false;

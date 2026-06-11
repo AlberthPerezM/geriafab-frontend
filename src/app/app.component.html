@@ -1,19 +1,15 @@
 <main>
-  <section class="assistant-card single-face" aria-labelledby="assistant-title">
-    <div class="assistant-header">
-      <span class="assistant-kicker">Geriafab AI</span>
-      <h1 id="assistant-title">Asistente de voz</h1>
-    </div>
-
+  <section class="assistant-card single-face">
     <div class="face-wrap">
-      <div class="voice-orb" [class.listening]="recognizing" [class.thinking]="isThinking" [class.speaking]="isSpeaking"
+      <div class="avatar" [class.listening]="recognizing" [class.thinking]="isThinking" [class.speaking]="isSpeaking"
         role="img" aria-label="Estado de voz del asistente">
-        <span class="orb-ring ring-one" aria-hidden="true"></span>
-        <span class="orb-core" aria-hidden="true">
-          <span class="orb-eye left" aria-hidden="true"></span>
-          <span class="orb-eye right" aria-hidden="true"></span>
-          <span class="orb-mouth" aria-hidden="true"></span>
+        <span class="avatar-antenna" aria-hidden="true"></span>
+        <span class="avatar-head" aria-hidden="true">
+          <span class="avatar-eye left"></span>
+          <span class="avatar-eye right"></span>
+          <span class="avatar-mouth"></span>
         </span>
+        <span class="avatar-body" aria-hidden="true"></span>
       </div>
 
       <div class="voice-status" [class.listening]="recognizing" [class.thinking]="isThinking"
@@ -24,7 +20,8 @@
 
       <div class="mic-card">
         <button class="mic-circle" type="button" (click)="toggleListening()" [attr.aria-label]="micLabel"
-          [attr.aria-pressed]="recognizing">
+          [attr.aria-pressed]="recognizing" [class.active]="recognizing || conversationEnabled"
+          [class.thinking]="isThinking" [class.speaking]="isSpeaking">
           <span class="mic-icon" [class.active]="recognizing" [class.speaking]="isSpeaking" aria-hidden="true">
             <span class="mic-stem"></span>
           </span>

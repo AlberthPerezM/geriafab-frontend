@@ -33,6 +33,12 @@
           },
           "configurations": {
             "production": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.production.ts"
+                }
+              ],
               "budgets": [
                 {
                   "type": "initial",
@@ -41,11 +47,22 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "6kB",
-                  "maximumError": "8kB"
+                  "maximumWarning": "18kB",
+                  "maximumError": "22kB"
                 }
               ],
               "outputHashing": "all"
+            },
+            "public": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.public.ts"
+                }
+              ],
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
             },
             "development": {
               "optimization": false,
@@ -60,6 +77,10 @@
           "configurations": {
             "production": {
               "buildTarget": "geriafab-frontend:build:production"
+            },
+            "public": {
+              "buildTarget": "geriafab-frontend:build:public",
+              "host": "0.0.0.0"
             },
             "development": {
               "buildTarget": "geriafab-frontend:build:development"

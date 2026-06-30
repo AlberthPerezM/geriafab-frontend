@@ -1,6 +1,7 @@
 ﻿import { AfterViewInit, Component, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { environment } from '../environments/environment';
 
 type SpeechRecognitionInstance = {
@@ -93,6 +94,33 @@ type AuthUser = {
   provider: 'email' | 'google';
 };
 
+type MusicResult = {
+  videoId: string;
+  title: string;
+  channel: string;
+  thumbnail: string;
+};
+
+type YouTubeSearchResponse = {
+  items: Array<{
+    id: { videoId: string };
+    snippet: {
+      title: string;
+      channelTitle: string;
+      thumbnails: {
+        default?: { url: string };
+        medium?: { url: string };
+      };
+    };
+  }>;
+};
+
+type MusicCommand =
+  | { type: 'stop' }
+  | { type: 'first' }
+  | { type: 'next' }
+  | { type: 'search'; query: string };
+
 type SeniorProfile = {
   personName: string;
   nickname: string;
@@ -142,10 +170,11 @@ export class AppComponent implements AfterViewInit {
   private pauseTimer: number | null = null;
   private recognitionRestartTimer: number | null = null;
   private interruptionDetectionTimer: number | null = null;
-  private currentUtterance: SpeechSynthesisUtterance | null = null;
+  private speechMouthTimer: number | null = null;
 
   recognizing = false;
   isSpeaking = false;
+  speechMouthOpen = false;
   isThinking = false;
   conversationEnabled = false;
   assistantSpeechPhase: 'idle' | 'started' | 'paused' | 'ended' | 'interrupted' = 'idle';
@@ -170,7 +199,15 @@ export class AppComponent implements AfterViewInit {
     'Riesgos',
   ];
   profileSaved = false;
-  musicResults: Array<{ title: string; artist: string }> = [];
+  musicResults: MusicResult[] = [];
+  musicQuery = '';
+  musicLoading = false;
+  musicError = '';
+  currentVideoId = '';
+  showMusicPanel = false;
+  showChatPanel = false;
+  private currentMusicIndex = -1;
+  private readonly youtubeApiKey = 'AIzaSyBDVGtx8BR9gPMXymgMSaCJTYfUt9AuujA';
   profile: SeniorProfile = this.createEmptyProfile();
   authMode: AuthMode = 'login';
   authMessage = '';
@@ -185,7 +222,7 @@ export class AppComponent implements AfterViewInit {
     confirmPassword: '',
   };
 
-  constructor() {
+  constructor(private readonly sanitizer: DomSanitizer) {
     this.loadAuthSession();
     void this.restoreSession();
   }
@@ -722,25 +759,185 @@ export class AppComponent implements AfterViewInit {
     };
   }
 
-  setPanel(panel: 'transcript' | 'music'): void {
-    this.selectedPanel = panel;
-    if (panel === 'music') {
-      this.musicResults = [];
+  replayLastReply(): void {
+    if (!this.reply || this.isSpeaking || this.isThinking) {
+      return;
     }
+    this.speak(this.reply);
   }
 
-  searchMusic(query: string): void {
-    const q = (query || '').trim();
+  setPanel(panel: 'transcript' | 'music'): void {
+    this.selectedPanel = panel;
+  }
+
+  async searchMusic(query?: string, voiceTriggered = false): Promise<void> {
+    const q = (query ?? this.musicQuery).trim();
     if (!q) {
       this.musicResults = [];
       return;
     }
 
-    this.musicResults = [
-      { title: `${q} (Single)`, artist: 'Artista Ejemplo' },
-      { title: `${q} - Remix`, artist: 'DJ Demo' },
-      { title: `Live ${q}`, artist: 'Banda Demo' }
+    this.musicQuery = q;
+    this.musicLoading = true;
+    this.musicError = '';
+    this.musicResults = [];
+    this.selectedPanel = 'music';
+
+    try {
+      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(q)}&type=video&key=${this.youtubeApiKey}&maxResults=8&relevanceLanguage=es`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        this.musicError = 'No se pudo buscar música. Intenta de nuevo.';
+        return;
+      }
+      const data = (await response.json()) as YouTubeSearchResponse;
+      this.musicResults = (data.items ?? []).map(item => ({
+        videoId: item.id.videoId,
+        title: item.snippet.title,
+        channel: item.snippet.channelTitle,
+        thumbnail: item.snippet.thumbnails.medium?.url ?? item.snippet.thumbnails.default?.url ?? '',
+      }));
+      if (this.musicResults.length === 0) {
+        this.musicError = 'No se encontraron resultados para esa búsqueda.';
+        this.showMusicPanel = true;
+      } else {
+        this.showMusicPanel = true;
+        if (voiceTriggered) {
+          this.playSongAt(0);
+          this.reply = `Reproduciendo: ${this.musicResults[0].title}.`;
+        }
+      }
+    } catch {
+      this.musicError = 'Error al conectar con YouTube. Verifica tu conexión.';
+    } finally {
+      this.musicLoading = false;
+    }
+  }
+
+  playMusic(videoId: string): void {
+    const index = this.musicResults.findIndex(song => song.videoId === videoId);
+    this.currentMusicIndex = index;
+    this.showMusicPanel = true;
+    this.selectedPanel = 'music';
+    this.conversationEnabled = false;
+    this.clearRecognitionRestart();
+    this.stopRecognition(false);
+    if (window.speechSynthesis) {
+      speechSynthesis.cancel();
+    }
+    this.isSpeaking = false;
+    this.isThinking = false;
+    this.stopSpeechMouthMotion();
+    this.clearInterruptionDetection();
+    this.currentVideoId = videoId;
+    this.status = 'reproduciendo música';
+  }
+
+  playSongAt(index: number): void {
+    const song = this.musicResults[index];
+    if (!song) {
+      this.reply = 'No encontré una canción para reproducir.';
+      this.speak(this.reply);
+      return;
+    }
+
+    this.reply = `Reproduciendo: ${song.title}.`;
+    this.playMusic(song.videoId);
+  }
+
+  playNextSong(): void {
+    if (this.musicResults.length === 0) {
+      this.reply = 'Primero dime qué música quieres escuchar.';
+      this.speak(this.reply);
+      return;
+    }
+
+    const nextIndex = this.currentMusicIndex >= 0
+      ? (this.currentMusicIndex + 1) % this.musicResults.length
+      : 0;
+    this.playSongAt(nextIndex);
+  }
+
+  stopMusic(): void {
+    this.currentVideoId = '';
+    this.currentMusicIndex = -1;
+    this.status = 'microfono apagado';
+  }
+
+  closeMusicPanel(): void {
+    this.showMusicPanel = false;
+    this.currentVideoId = '';
+    this.musicResults = [];
+    this.musicQuery = '';
+    this.musicError = '';
+    this.currentMusicIndex = -1;
+  }
+
+  closeChatPanel(): void {
+    this.showChatPanel = false;
+  }
+
+  recommendMusic(): void {
+    const query =
+      this.profile.favoriteTheme?.trim() ||
+      this.profile.happinessTriggers?.split(',')[0]?.trim() ||
+      'música popular en español';
+    this.showMusicPanel = true;
+    void this.searchMusic(query, false);
+  }
+
+  get currentVideoUrl(): SafeResourceUrl | null {
+    if (!this.currentVideoId) return null;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(
+      `https://www.youtube.com/embed/${this.currentVideoId}?autoplay=1`
+    );
+  }
+
+  get currentVideoWatchUrl(): string {
+    return this.currentVideoId ? `https://www.youtube.com/watch?v=${this.currentVideoId}` : '#';
+  }
+
+  private detectMusicQuery(text: string): string | null {
+    const command = this.detectMusicCommand(text);
+    return command?.type === 'search' ? command.query : null;
+  }
+
+  private detectMusicCommand(text: string): MusicCommand | null {
+    const t = text.toLowerCase()
+      .replace(/[áàäâã]/g, 'a').replace(/[éèëê]/g, 'e')
+      .replace(/[íìïî]/g, 'i').replace(/[óòöôõ]/g, 'o')
+      .replace(/[úùüû]/g, 'u').replace(/ñ/g, 'n');
+
+    if (/\b(det[eé]n|detener|para|parar|apaga|silencia|pausa)\b.*\b(musica|cancion|video|reproduccion)\b/.test(t)) {
+      return { type: 'stop' };
+    }
+
+    if (/\b(siguiente|otra|pon otra|cambia)\b/.test(t) && /\b(musica|cancion|tema)?\b/.test(t)) {
+      return { type: 'next' };
+    }
+
+    if (/\b(reproduce|pon|toca)\b.*\b(primera|primer resultado|la uno|numero uno)\b/.test(t)) {
+      return { type: 'first' };
+    }
+
+    if (/\b(pon|reproduce|toca|busca|quiero escuchar)\b.*\b(musica|canciones)\b\s*$/.test(t)) {
+      return {
+        type: 'search',
+        query: this.profile.favoriteTheme?.trim() || 'música popular en español',
+      };
+    }
+
+    const patterns = [
+      /(?:pon|reproduce|toca|busca|quiero escuchar|escucha|ponme)\s+(?:musica|cancion|canciones|el tema|la cancion)?\s*(?:de\s+)?(.+)/,
+      /(?:musica|cancion|canciones)\s+(?:de\s+)?(.+)/,
+      /(?:poner|buscar|reproducir)\s+(?:musica|cancion|canciones|el tema)?\s*(?:de\s+)?(.+)/,
+      /(?:quiero|queria)\s+(?:escuchar|oir)\s+(.+)/,
     ];
+    for (const pattern of patterns) {
+      const match = t.match(pattern);
+      if (match?.[1]) return { type: 'search', query: match[1].trim() };
+    }
+    return null;
   }
 
   toggleListening(): void {
@@ -1021,6 +1218,33 @@ export class AppComponent implements AfterViewInit {
     this.userSpeechPhase = 'ended';
     this.status = 'pensando';
     this.reply = 'Escribiendo...';
+    this.showChatPanel = true;
+
+    const musicCommand = this.detectMusicCommand(text);
+    if (musicCommand) {
+      this.showMusicPanel = true;
+
+      if (musicCommand.type === 'stop') {
+        this.stopMusic();
+        this.reply = 'Listo, detuve la música.';
+        this.speak(this.reply);
+        return;
+      }
+
+      if (musicCommand.type === 'first') {
+        this.playSongAt(0);
+        return;
+      }
+
+      if (musicCommand.type === 'next') {
+        this.playNextSong();
+        return;
+      }
+
+      this.reply = `Abriré la ventana de música y buscaré: ${musicCommand.query}.`;
+      this.speak(this.reply, () => void this.searchMusic(musicCommand.query, true));
+      return;
+    }
 
     try {
       const response = await fetch(this.apiUrl, {
@@ -1051,9 +1275,10 @@ export class AppComponent implements AfterViewInit {
     this.scheduleRecognitionRestart(250);
   }
 
-  private speak(text: string): void {
+  private speak(text: string, afterSpeech?: () => void): void {
     if (!window.speechSynthesis) {
       this.finishThinking();
+      afterSpeech?.();
       return;
     }
 
@@ -1069,18 +1294,22 @@ export class AppComponent implements AfterViewInit {
     utterance.onstart = () => {
       this.assistantSpeechPhase = 'started';
       this.status = 'asistente hablando';
+      this.startSpeechMouthMotion();
     };
     utterance.onpause = () => {
       this.assistantSpeechPhase = 'paused';
       this.status = 'asistente en pausa';
+      this.stopSpeechMouthMotion();
     };
     utterance.onresume = () => {
       this.assistantSpeechPhase = 'started';
       this.status = 'asistente hablando';
+      this.startSpeechMouthMotion();
     };
+    utterance.onboundary = () => this.pulseSpeechMouth();
     utterance.onend = () => {
       this.isSpeaking = false;
-      this.currentUtterance = null;
+      this.stopSpeechMouthMotion();
       this.clearInterruptionDetection();
 
       if (this.speechInterrupted) {
@@ -1090,21 +1319,52 @@ export class AppComponent implements AfterViewInit {
 
       this.assistantSpeechPhase = 'ended';
       this.listenIgnoreUntil = Date.now() + 250;
+      afterSpeech?.();
+
       this.status = this.conversationEnabled ? 'escuchando' : 'microfono apagado';
       this.scheduleRecognitionRestart(300);
     };
     utterance.onerror = () => {
       this.isSpeaking = false;
-      this.currentUtterance = null;
+      this.stopSpeechMouthMotion();
       this.clearInterruptionDetection();
       this.assistantSpeechPhase = 'ended';
       this.status = this.conversationEnabled ? 'listo para escuchar' : 'microfono apagado';
       this.scheduleRecognitionRestart(250);
+      afterSpeech?.();
     };
 
-    this.currentUtterance = utterance;
     speechSynthesis.cancel();
     speechSynthesis.speak(utterance);
+  }
+
+  private startSpeechMouthMotion(): void {
+    this.clearSpeechMouthTimer();
+    this.pulseSpeechMouth();
+    this.speechMouthTimer = window.setInterval(() => this.pulseSpeechMouth(), 220);
+  }
+
+  private pulseSpeechMouth(): void {
+    if (!this.isSpeaking) {
+      return;
+    }
+
+    this.speechMouthOpen = true;
+    window.setTimeout(() => {
+      this.speechMouthOpen = false;
+    }, 110);
+  }
+
+  private stopSpeechMouthMotion(): void {
+    this.clearSpeechMouthTimer();
+    this.speechMouthOpen = false;
+  }
+
+  private clearSpeechMouthTimer(): void {
+    if (this.speechMouthTimer !== null) {
+      window.clearInterval(this.speechMouthTimer);
+      this.speechMouthTimer = null;
+    }
   }
 
   private startInterruptionDetection(delayMs = 600): void {
@@ -1138,6 +1398,7 @@ export class AppComponent implements AfterViewInit {
 
     this.isSpeaking = false;
     this.isThinking = false;
+    this.stopSpeechMouthMotion();
     this.assistantSpeechPhase = 'interrupted';
     this.userSpeechPhase = 'interrupted';
     this.listenIgnoreUntil = 0;
@@ -1196,5 +1457,3 @@ export class AppComponent implements AfterViewInit {
     return 'Toca el microfono una vez para iniciar la conversacion.';
   }
 }
-
-

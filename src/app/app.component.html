@@ -20,8 +20,8 @@
         <input *ngIf="authMode === 'registro'" name="authName" [(ngModel)]="authForm.name" autocomplete="name"
           placeholder="Nombre" aria-label="Nombre" required>
 
-        <input type="email" name="authEmail" [(ngModel)]="authForm.email" autocomplete="email"
-          placeholder="Correo" aria-label="Correo electronico" required>
+        <input type="email" name="authEmail" [(ngModel)]="authForm.email" autocomplete="email" placeholder="Correo"
+          aria-label="Correo electronico" required>
 
         <input type="password" name="authPassword" [(ngModel)]="authForm.password"
           [attr.autocomplete]="authMode === 'login' ? 'current-password' : 'new-password'" placeholder="Contrasena"
@@ -35,12 +35,16 @@
           {{ authMode === 'login' ? 'Entrar' : 'Crear cuenta' }}
         </button>
 
-        <div class="auth-divider"><span>o</span></div>
-        <div #googleButton class="google-button-slot" aria-label="Acceso con Google"></div>
-        <button *ngIf="!googleClientIdConfigured" type="button" class="google-button" (click)="signInWithGoogle()">
-          <span aria-hidden="true">G</span>
-          Google
-        </button>
+        <ng-container *ngIf="showGoogleLogin">
+          <div class="auth-divider"><span>o</span></div>
+          <div #googleButton class="google-button-slot" aria-label="Acceso con Google"></div>
+          <button *ngIf="!googleClientIdConfigured" type="button" class="google-button" (click)="signInWithGoogle()">
+            <span aria-hidden="true">G</span>
+            Google
+          </button>
+        </ng-container>
+
+        <div class="intilab-badge" *ngIf="!showGoogleLogin">Hecho en Intilab</div>
 
         <p class="auth-message" *ngIf="authMessage">{{ authMessage }}</p>
         <div class="auth-recovery" *ngIf="showDuplicateEmailRecovery">
@@ -53,550 +57,608 @@
   </section>
 
   <ng-container *ngIf="isAuthenticated">
-  <section *ngIf="!settingsOpen" class="app-shell voice-stage">
-    <header class="topbar">
-      <div class="topbar-actions">
-        <button type="button" class="music-nav-btn" (click)="recommendMusic()" [class.active]="musicLoading" aria-label="Recomendar música" title="Recomendar música según perfil">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-          {{ musicLoading ? 'Buscando...' : 'Música' }}
-        </button>
-        <button type="button" class="settings-button icon-only" (click)="requestSettingsAccess()" aria-label="Configuracion del apoderado" title="Configuracion">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06A2 2 0 0 1 7.03 3.73l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15.5 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.38.5.7.9.9.33.17.7.27 1.1.27H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z"/></svg>
-        </button>
-        <button type="button" class="logout-button" (click)="logout()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          Salir
-        </button>
-      </div>
-    </header>
-
-    <section class="assistant-card"
-      [class.has-music]="showMusicPanel"
-      [class.has-chat]="showChatPanel">
-
-      <!-- ── IZQUIERDA: Panel de música (ventana) ──────────── -->
-      <div class="jarvis-panel panel-music" *ngIf="showMusicPanel">
-
-        <div class="panel-header">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-          <span>Música</span>
-          <span class="panel-tag" *ngIf="musicQuery && !musicLoading && musicResults.length > 0">{{ musicQuery }}</span>
-          <button type="button" class="panel-close" (click)="closeMusicPanel()" aria-label="Cerrar panel de música">✕</button>
-        </div>
-
-        <div class="panel-search">
-          <input type="text" class="music-input" [(ngModel)]="musicQuery"
-            placeholder="Artista o canción..." (keyup.enter)="searchMusic()"
-            aria-label="Buscar música">
-          <button type="button" class="music-search-btn" (click)="searchMusic()" [disabled]="musicLoading" aria-label="Buscar">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <section *ngIf="!settingsOpen && !managerOpen" class="app-shell voice-stage">
+      <header class="topbar">
+        <div class="topbar-actions">
+          <button type="button" class="music-nav-btn" (click)="recommendMusic()" [class.active]="musicLoading"
+            aria-label="Recomendar música" title="Recomendar música según perfil">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+            {{ musicLoading ? 'Buscando...' : 'Música' }}
+          </button>
+          <button type="button" class="settings-button" (click)="requestManagerAccess()"
+            aria-label="Ficha de adulto mayor" title="Ficha de adulto mayor">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            Ficha
+          </button>
+          <button type="button" class="settings-button icon-only" (click)="requestSettingsAccess()"
+            aria-label="Configuracion del adulto mayor" title="Configuracion">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" />
+              <path
+                d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06A2 2 0 0 1 7.03 3.73l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15.5 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.38.5.7.9.9.33.17.7.27 1.1.27H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z" />
+            </svg>
+          </button>
+          <button type="button" class="logout-button" (click)="logout()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16,17 21,12 16,7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            Salir
           </button>
         </div>
+      </header>
 
-        <div class="music-loading" *ngIf="musicLoading">
-          <span></span><span></span><span></span>
-          <small>Buscando en YouTube...</small>
-        </div>
+      <section class="assistant-card" [class.has-music]="showMusicPanel" [class.has-chat]="showChatPanel">
 
-        <p class="music-error" *ngIf="musicError && !musicLoading">{{ musicError }}</p>
-
-        <div class="music-player" *ngIf="currentVideoId && currentVideoUrl">
-          <iframe [src]="currentVideoUrl" allow="autoplay; encrypted-media" allowfullscreen frameborder="0" title="Reproductor"></iframe>
-          <div class="music-player-actions">
-            <a class="open-youtube-btn" [href]="currentVideoWatchUrl" target="_blank" rel="noopener">Abrir en YouTube</a>
-            <button type="button" class="stop-btn" (click)="stopMusic()">⏹ Detener</button>
+        <div class="reminder-popover" *ngIf="activeReminder" role="alertdialog" aria-live="assertive"
+          [class.reminder-moved]="reminderPosition"
+          [style.left.px]="reminderPosition?.x" [style.top.px]="reminderPosition?.y"
+          (pointerdown)="startReminderDrag($event)" (pointermove)="moveReminder($event)"
+          (pointerup)="endReminderDrag($event)" (pointercancel)="endReminderDrag($event)">
+          <div class="reminder-icon" aria-hidden="true">⏰</div>
+          <div class="reminder-copy">
+            <strong>{{ activeReminder.title }}</strong>
+            <span>{{ activeReminder.time }}</span>
+            <p>{{ activeReminder.message }}</p>
+            <small>Di “apaga la alarma” o “cierra la ventana”.</small>
           </div>
+          <button type="button" class="panel-close" (click)="dismissReminder()" aria-label="Apagar alarma">×</button>
         </div>
 
-        <ul class="music-results" *ngIf="!musicLoading && musicResults.length > 0">
-          <li *ngFor="let song of musicResults; let i = index"
-              class="music-result-item"
-              [class.playing]="currentVideoId === song.videoId"
-              (click)="playMusic(song.videoId)"
-              role="button"
-              [attr.aria-label]="'Reproducir ' + song.title">
-            <span class="music-num">{{ i + 1 }}</span>
-            <img class="music-thumb" [src]="song.thumbnail" [alt]="song.title" loading="lazy">
-            <div class="music-result-info">
-              <strong class="music-title">{{ song.title }}</strong>
-              <span class="music-channel">{{ song.channel }}</span>
+        <div class="contacts-popover" *ngIf="showContactsPanel" role="dialog" aria-labelledby="contactsTitle">
+          <div class="panel-header">
+            <span id="contactsTitle">Personas conocidas</span>
+            <button type="button" class="panel-close" (click)="closeContactsPanel()"
+              aria-label="Cerrar contactos">×</button>
+          </div>
+          <div class="contacts-list" *ngIf="knownContacts.length > 0; else noKnownContacts">
+            <div class="contact-card" *ngFor="let contact of knownContacts">
+              <div>
+                <strong>{{ contact.name || 'Sin nombre' }}</strong>
+                <span *ngIf="contact.relationship">{{ contact.relationship }}</span>
+                <span class="contact-phone" *ngIf="contact.phone">{{ contact.phone }}</span>
+              </div>
             </div>
-            <span class="play-icon" aria-hidden="true">
-              <svg *ngIf="currentVideoId !== song.videoId" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-              <svg *ngIf="currentVideoId === song.videoId" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-            </span>
-          </li>
-        </ul>
-
-      </div><!-- /panel-music -->
-
-      <!-- ── CENTRO: Avatar + micrófono ────────────────────── -->
-      <div class="face-wrap">
-        <div class="avatar"
-          [class.listening]="recognizing" [class.thinking]="isThinking"
-          [class.speaking]="isSpeaking" [class.mouth-open]="speechMouthOpen"
-          role="img" aria-label="Estado de voz del asistente">
-          <span class="avatar-antenna" aria-hidden="true"></span>
-          <span class="avatar-head" aria-hidden="true">
-            <span class="avatar-brow left"></span>
-            <span class="avatar-brow right"></span>
-            <span class="avatar-eye left"></span>
-            <span class="avatar-eye right"></span>
-            <span class="avatar-mouth"></span>
-          </span>
-          <span class="avatar-body" aria-hidden="true"></span>
-        </div>
-
-        <div class="wave-bars" [class.active]="recognizing" aria-hidden="true">
-          <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-        </div>
-
-        <div class="voice-status" [class.listening]="recognizing" [class.thinking]="isThinking"
-          [class.speaking]="isSpeaking" aria-live="polite">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span>{{ voiceStatusText }}</span>
-        </div>
-
-        <div class="mic-card">
-          <button class="mic-circle" type="button" (click)="toggleListening()"
-            [attr.aria-label]="micLabel" [attr.aria-pressed]="recognizing"
-            [class.active]="recognizing || conversationEnabled"
-            [class.thinking]="isThinking" [class.speaking]="isSpeaking">
-            <span class="mic-icon" [class.active]="recognizing" [class.speaking]="isSpeaking" aria-hidden="true">
-              <span class="mic-stem"></span>
-            </span>
-          </button>
-          <strong class="mic-label">{{ micLabel }}</strong>
-          <span class="mic-sub">{{ micHelpText }}</span>
-        </div>
-      </div><!-- /face-wrap -->
-
-      <!-- ── DERECHA: Panel de conversación ─────────────────── -->
-      <div class="jarvis-panel panel-chat" *ngIf="showChatPanel">
-
-        <div class="panel-header">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <span>Conversación</span>
-          <button type="button" class="panel-close" (click)="closeChatPanel()" aria-label="Cerrar conversación">✕</button>
-        </div>
-
-        <div class="conversation-area" *ngIf="transcript || isThinking || (reply && reply !== 'Escribiendo...')">
-          <div class="conv-entry user-entry" *ngIf="transcript">
-            <span class="conv-speaker">Tú</span>
-            <p>{{ transcript }}</p>
           </div>
-          <div class="thinking-dots" *ngIf="isThinking">
-            <span></span><span></span><span></span>
+          <ng-template #noKnownContacts>
+            <p class="contacts-empty">No hay personas con teléfono guardadas en la ficha.</p>
+          </ng-template>
+          <p class="contacts-voice-help">Puedes decir “cierra contactos”.</p>
+        </div>
+
+        <!-- ── IZQUIERDA: Panel de música (ventana) ──────────── -->
+        <div class="jarvis-panel panel-music" *ngIf="showMusicPanel">
+
+          <div class="panel-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" aria-hidden="true">
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+            <span>Música</span>
+            <span class="panel-tag" *ngIf="musicQuery && !musicLoading && musicResults.length > 0">{{ musicQuery
+              }}</span>
+            <button type="button" class="panel-close" (click)="closeMusicPanel()"
+              aria-label="Cerrar panel de música">✕</button>
           </div>
-          <div class="conv-entry bot-entry"
-            *ngIf="reply && reply !== 'Escribiendo...' && !isThinking">
-            <span class="conv-speaker">GeriaBot</span>
-            <p>{{ reply }}</p>
-            <button type="button" class="replay-button" (click)="replayLastReply()"
-              *ngIf="!isSpeaking" aria-label="Repetir última respuesta">
-              Repetir
+
+          <div class="panel-search">
+            <input type="text" class="music-input" [(ngModel)]="musicQuery" placeholder="Artista o canción..."
+              (keyup.enter)="searchMusic()" aria-label="Buscar música">
+            <button type="button" class="music-search-btn" (click)="searchMusic()" [disabled]="musicLoading"
+              aria-label="Buscar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
             </button>
           </div>
-        </div>
 
-      </div><!-- /panel-chat -->
+          <div class="music-loading" *ngIf="musicLoading">
+            <span></span><span></span><span></span>
+            <small>Buscando en YouTube...</small>
+          </div>
+
+          <p class="music-error" *ngIf="musicError && !musicLoading">{{ musicError }}</p>
+
+          <div class="music-player" *ngIf="currentVideoId && currentVideoUrl">
+            <iframe #musicFrame [src]="currentVideoUrl" (load)="onMusicFrameLoad()" allow="autoplay; encrypted-media"
+              allowfullscreen frameborder="0" title="Reproductor"></iframe>
+            <div class="music-player-controls">
+              <button type="button" class="ctrl-btn" (click)="volumeDown()" aria-label="Bajar volumen"
+                title="Bajar volumen">🔉 −</button>
+              <span class="volume-label" aria-live="polite">Vol {{ musicVolume }}%</span>
+              <button type="button" class="ctrl-btn" (click)="volumeUp()" aria-label="Subir volumen"
+                title="Subir volumen">🔊 +</button>
+              <button type="button" class="ctrl-btn" (click)="togglePlayPause()"
+                [attr.aria-label]="musicPaused ? 'Reanudar' : 'Pausar'">{{ musicPaused ? '▶' : '⏸' }}</button>
+              <button type="button" class="ctrl-btn" (click)="playNextSong()" aria-label="Siguiente canción"
+                title="Siguiente">⏭</button>
+            </div>
+            <div class="music-player-actions">
+              <a class="open-youtube-btn" [href]="currentVideoWatchUrl" target="_blank" rel="noopener">Abrir en
+                YouTube</a>
+              <button type="button" class="stop-btn" (click)="stopMusic()">⏹ Detener</button>
+            </div>
+          </div>
+
+          <ul class="music-results" *ngIf="!musicLoading && musicResults.length > 0">
+            <li *ngFor="let song of musicResults; let i = index" class="music-result-item"
+              [class.playing]="currentVideoId === song.videoId" (click)="playMusic(song.videoId)" role="button"
+              [attr.aria-label]="'Reproducir ' + song.title">
+              <span class="music-num">{{ i + 1 }}</span>
+              <img class="music-thumb" [src]="song.thumbnail" [alt]="song.title" loading="lazy">
+              <div class="music-result-info">
+                <strong class="music-title">{{ song.title }}</strong>
+                <span class="music-channel">{{ song.channel }}</span>
+              </div>
+              <span class="play-icon" aria-hidden="true">
+                <svg *ngIf="currentVideoId !== song.videoId" width="16" height="16" viewBox="0 0 24 24"
+                  fill="currentColor">
+                  <polygon points="5,3 19,12 5,21" />
+                </svg>
+                <svg *ngIf="currentVideoId === song.videoId" width="16" height="16" viewBox="0 0 24 24"
+                  fill="currentColor">
+                  <rect x="6" y="4" width="4" height="16" />
+                  <rect x="14" y="4" width="4" height="16" />
+                </svg>
+              </span>
+            </li>
+          </ul>
+
+        </div><!-- /panel-music -->
+
+        <!-- ── CENTRO: Avatar + micrófono ────────────────────── -->
+        <div class="face-wrap">
+          <div class="avatar" [class.listening]="recognizing" [class.thinking]="isThinking"
+            [class.speaking]="isSpeaking" [class.mouth-open]="speechMouthOpen" role="img"
+            aria-label="Estado de voz del asistente">
+            <span class="avatar-antenna" aria-hidden="true"></span>
+            <span class="avatar-head" aria-hidden="true">
+              <span class="avatar-brow left"></span>
+              <span class="avatar-brow right"></span>
+              <span class="avatar-eye left"></span>
+              <span class="avatar-eye right"></span>
+              <span class="avatar-mouth"></span>
+            </span>
+            <span class="avatar-body" aria-hidden="true"></span>
+          </div>
+
+          <div class="wave-bars" [class.active]="recognizing" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+
+          <div class="voice-status" [class.listening]="recognizing" [class.thinking]="isThinking"
+            [class.speaking]="isSpeaking" aria-live="polite">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span>{{ voiceStatusText }}</span>
+          </div>
+
+          <div class="mic-card">
+            <button class="mic-circle" type="button" (click)="toggleListening()" [attr.aria-label]="micLabel"
+              [attr.aria-pressed]="recognizing" [class.active]="recognizing || conversationEnabled"
+              [class.thinking]="isThinking" [class.speaking]="isSpeaking">
+              <span class="mic-icon" [class.active]="recognizing" [class.speaking]="isSpeaking" aria-hidden="true">
+                <span class="mic-stem"></span>
+              </span>
+            </button>
+            <strong class="mic-label">{{ micLabel }}</strong>
+            <span class="mic-sub">{{ micHelpText }}</span>
+          </div>
+        </div><!-- /face-wrap -->
+
+        <!-- ── DERECHA: Panel de conversación ─────────────────── -->
+        <div class="jarvis-panel panel-chat" *ngIf="showChatPanel">
+
+          <div class="panel-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" aria-hidden="true">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            <span>Conversación</span>
+            <button type="button" class="panel-close" (click)="closeChatPanel()"
+              aria-label="Cerrar conversación">✕</button>
+          </div>
+
+          <div class="conversation-area" *ngIf="transcript || isThinking || (reply && reply !== 'Escribiendo...')">
+            <div class="conv-entry user-entry" *ngIf="transcript">
+              <span class="conv-speaker">Tú</span>
+              <p>{{ transcript }}</p>
+            </div>
+            <div class="thinking-dots" *ngIf="isThinking">
+              <span></span><span></span><span></span>
+            </div>
+            <div class="conv-entry bot-entry" *ngIf="reply && reply !== 'Escribiendo...' && !isThinking">
+              <span class="conv-speaker">GeriaBot</span>
+              <p>{{ reply }}</p>
+              <button type="button" class="replay-button" (click)="replayLastReply()" *ngIf="!isSpeaking"
+                aria-label="Repetir última respuesta">
+                Repetir
+              </button>
+            </div>
+          </div>
+
+        </div><!-- /panel-chat -->
+
+      </section>
+
+      <form *ngIf="settingsUnlockOpen" class="settings-lock" (ngSubmit)="unlockSettings()">
+        <div class="settings-lock-card">
+          <p class="eyebrow">Panel del apoderado</p>
+          <h2>Desbloquear ficha</h2>
+          <input type="password" name="settingsPassword" [(ngModel)]="settingsPassword" autocomplete="current-password"
+            placeholder="Contrasena" aria-label="Contrasena del apoderado" required>
+          <p class="auth-message" *ngIf="settingsUnlockMessage">{{ settingsUnlockMessage }}</p>
+          <div class="settings-lock-actions">
+            <button type="button" class="secondary-button" (click)="cancelSettingsAccess()">Cancelar</button>
+            <button type="submit" class="primary-button">Entrar</button>
+          </div>
+        </div>
+      </form>
 
     </section>
 
-    <form *ngIf="settingsUnlockOpen" class="settings-lock" (ngSubmit)="unlockSettings()">
+    <section *ngIf="managerOpen" class="profile-page">
+      <div class="settings-panel manager-panel">
+        <div class="settings-heading">
+          <div>
+            <p class="eyebrow">Panel del apoderado</p>
+            <h2>Ficha de adulto mayor</h2>
+          </div>
+          <button type="button" class="secondary-button" (click)="closeManager()">Cerrar</button>
+        </div>
+
+        <div class="profile-manager" *ngIf="isAuthenticated">
+          <div class="profile-manager-head">
+            <span class="switcher-title">Mis adultos mayores ({{ profiles.length }}/{{ maxProfiles }})</span>
+            <button type="button" class="secondary-button" (click)="startNewProfile()" [disabled]="!canAddProfile">+
+              Nuevo</button>
+          </div>
+
+          <div *ngIf="profiles.length === 0" class="switcher-empty">
+            Aún no hay adultos mayores registrados. Usa "+ Nuevo" para crear el primero.
+          </div>
+
+          <div *ngIf="profiles.length > 0" class="profile-manager-list">
+            <div *ngFor="let p of profiles" class="profile-manager-item" [class.active]="p.id === activeProfileId">
+              <span class="profile-name">{{ p.personName || 'Sin nombre' }}</span>
+              <div class="profile-manager-actions">
+                <button type="button" class="secondary-button small" (click)="editProfile(p.id)">
+                  Editar
+                </button>
+                <button type="button" class="danger-link small" (click)="requestDeleteProfile(p.id)">
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <span *ngIf="profiles.length > 0 && !canAddProfile" class="switcher-empty">
+            Ya hay {{ maxProfiles }} adultos mayores registrados. La opción Nuevo está desactivada.
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <form *ngIf="deleteProfileId !== null" class="settings-lock" (ngSubmit)="confirmDeleteProfile()">
       <div class="settings-lock-card">
-        <p class="eyebrow">Panel del apoderado</p>
-        <h2>Desbloquear ficha</h2>
-        <input type="password" name="settingsPassword" [(ngModel)]="settingsPassword"
-          autocomplete="current-password" placeholder="Contrasena" aria-label="Contrasena del apoderado" required>
-        <p class="auth-message" *ngIf="settingsUnlockMessage">{{ settingsUnlockMessage }}</p>
+        <p class="eyebrow">Confirmar eliminación</p>
+        <h2>Ingresa tu contraseña</h2>
+        <p>Esta acción eliminará permanentemente la ficha seleccionada.</p>
+        <input type="password" name="deleteProfilePassword" [(ngModel)]="deleteProfilePassword"
+          autocomplete="current-password" placeholder="Contraseña" required>
+        <p class="auth-message" *ngIf="deleteProfileError" role="alert">{{ deleteProfileError }}</p>
         <div class="settings-lock-actions">
-          <button type="button" class="secondary-button" (click)="cancelSettingsAccess()">Cancelar</button>
-          <button type="submit" class="primary-button">Entrar</button>
+          <button type="button" class="secondary-button" (click)="cancelDeleteProfile()"
+            [disabled]="deletingProfile">Cancelar</button>
+          <button type="submit" class="primary-button" [disabled]="deletingProfile || !deleteProfilePassword">
+            {{ deletingProfile ? 'Eliminando...' : 'Eliminar ficha' }}
+          </button>
         </div>
       </div>
     </form>
 
-  </section>
-
-  <section *ngIf="settingsOpen" class="profile-page">
-    <form class="profile-form settings-panel" (ngSubmit)="saveProfile()" #profileForm="ngForm">
-      <div class="settings-heading">
-        <div>
-          <p class="eyebrow">Panel del apoderado</p>
-          <h2>Ficha del adulto mayor</h2>
-        </div>
-        <button type="button" class="secondary-button" (click)="closeSettings()">Cerrar</button>
-      </div>
-
-      <aside class="profile-preview">
-        <div class="brand-mark">
-          <span>GeriaBot</span>
-          <strong>Ficha</strong>
-        </div>
-        <div class="preview-header">
-          <div class="preview-avatar" aria-hidden="true">
-            {{ (profile.nickname || profile.personName || 'G').charAt(0).toUpperCase() }}
-          </div>
+    <section *ngIf="settingsOpen" class="profile-page">
+      <form class="profile-form settings-panel" (ngSubmit)="saveProfile()" (input)="markProfileDirty()"
+        (change)="markProfileDirty()" #profileForm="ngForm" novalidate>
+        <div class="settings-heading">
           <div>
-            <h2>{{ profile.personName || 'Nuevo registro' }}</h2>
-            <span>{{ profile.nickname || 'Sin sobrenombre' }}</span>
+            <p class="eyebrow">Panel del apoderado</p>
+            <h2>Ficha del adulto mayor</h2>
           </div>
+          <button type="button" class="secondary-button" (click)="closeSettings()">Cerrar</button>
         </div>
 
-        <div class="preview-grid">
-          <div>
-            <span>Movilidad</span>
-            <strong>{{ profile.mobilityLevel || 'Pendiente' }}</strong>
+        <aside class="profile-preview">
+          <div class="brand-mark">
+            <span>GeriaBot</span>
+            <strong>Ficha</strong>
           </div>
-          <div>
-            <span>Positividad</span>
-            <strong>{{ profile.positivityState || 'Pendiente' }}</strong>
+          <div class="preview-header">
+            <div class="preview-avatar" aria-hidden="true">
+              {{ (profile.nickname || profile.personName || 'G').charAt(0).toUpperCase() }}
+            </div>
+            <div>
+              <h2>{{ profile.personName || 'Nuevo registro' }}</h2>
+              <span>{{ profile.nickname || 'Sin sobrenombre' }}</span>
+            </div>
           </div>
-          <div>
-            <span>Rutina</span>
-            <strong>{{ profile.wakeTime || '--:--' }} / {{ profile.sleepTime || '--:--' }}</strong>
-          </div>
-          <div>
-            <span>Contactos</span>
-            <strong>{{ profile.emergencyContacts.length }} registrados</strong>
-          </div>
-        </div>
 
-        <div class="preview-note">
-          <span>Color favorito</span>
-          <strong>{{ profile.favoriteColor || 'Sin registrar' }}</strong>
-        </div>
-
-        <div class="preview-note accent">
-          <span>Tema de gusto</span>
-          <strong>{{ profile.favoriteTheme || 'Sin registrar' }}</strong>
-        </div>
-      </aside>
-
-      <div class="form-stack">
-        <div class="wizard-card" aria-label="Progreso del registro">
-          <button type="button" *ngFor="let step of profileSteps; let i = index" class="step-pill"
-            [class.active]="currentProfileStep === i" [class.done]="currentProfileStep > i"
-            (click)="goToProfileStep(i)">
-            <span>{{ i + 1 }}</span>
-            {{ step }}
-          </button>
-        </div>
-
-        <section class="form-section" *ngIf="currentProfileStep === 0">
-          <div class="section-heading">
-            <h2>Datos personales</h2>
-            <span>Estos datos los completa el apoderado para personalizar la conversacion.</span>
-          </div>
-          <div class="form-grid">
-            <label>
-            <span>Nombre del adulto mayor</span>
-            <input name="personName" [(ngModel)]="profile.personName" required>
-          </label>
-          <label>
-            <span>Como debe llamarlo GeriaBot</span>
-            <input name="nickname" [(ngModel)]="profile.nickname">
-            </label>
-            <label>
-              <span>Nivel de movilidad</span>
-              <select name="mobilityLevel" [(ngModel)]="profile.mobilityLevel">
-                <option value="">Seleccionar</option>
-                <option>Independiente</option>
-                <option>Requiere apoyo leve</option>
-                <option>Requiere apoyo constante</option>
-                <option>Usa silla de ruedas</option>
-                <option>Permanece en cama</option>
-              </select>
-            </label>
-            <label>
-              <span>Estado de positividad</span>
-              <select name="positivityState" [(ngModel)]="profile.positivityState">
-                <option value="">Seleccionar</option>
-                <option value="alto">Alto</option>
-                <option value="medio">Medio</option>
-                <option value="bajo">Bajo</option>
-              </select>
-            </label>
-            <label>
-              <span>Estado de animo general</span>
-              <input name="generalMood" [(ngModel)]="profile.generalMood" placeholder="Ej. tranquilo, alegre, ansioso">
-            </label>
-            <label>
-              <span>Habitacion donde esta mas tiempo</span>
-              <input name="mainRoom" [(ngModel)]="profile.mainRoom" placeholder="Ej. sala, dormitorio, patio">
-            </label>
-            <label class="wide">
-              <span>Particularidad</span>
-              <textarea name="particularity" [(ngModel)]="profile.particularity" rows="3"></textarea>
-            </label>
-            <label class="wide">
+          <div class="preview-grid">
+            <div>
               <span>Movilidad</span>
-              <textarea name="mobilityDetails" [(ngModel)]="profile.mobilityDetails" rows="3"
-                placeholder="Detalles, apoyos, limitaciones o cuidados al moverse"></textarea>
-            </label>
-          </div>
-        </section>
-
-        <section class="form-section" *ngIf="currentProfileStep === 1">
-          <div class="section-heading">
-            <h2>Salud y rutina</h2>
-            <span>Contexto privado para que GeriaBot converse con cuidado y coherencia.</span>
-          </div>
-          <div class="checks">
-            <label class="check-row">
-              <input type="checkbox" name="hasPreexistingDisease" [(ngModel)]="profile.hasPreexistingDisease">
-              <span>Enfermedad preexistente</span>
-            </label>
-            <label class="check-row">
-              <input type="checkbox" name="requiresMedication" [(ngModel)]="profile.requiresMedication">
-              <span>Requiere medicacion</span>
-            </label>
-          </div>
-          <div class="form-grid">
-            <label class="wide" *ngIf="profile.hasPreexistingDisease">
-              <span>Indicar enfermedad preexistente</span>
-              <textarea name="preexistingDisease" [(ngModel)]="profile.preexistingDisease" rows="2"></textarea>
-            </label>
-            <label>
-              <span>Horario habitual de levantarse</span>
-              <input type="time" name="wakeTime" [(ngModel)]="profile.wakeTime">
-            </label>
-            <label>
-              <span>Horario habitual de acostarse</span>
-              <input type="time" name="sleepTime" [(ngModel)]="profile.sleepTime">
-            </label>
-          </div>
-
-          <div class="repeat-block" *ngIf="profile.requiresMedication">
-            <div class="repeat-heading">
-              <h3>Medicamentos</h3>
-              <button type="button" class="ghost-button" (click)="addMedication()">Agregar</button>
+              <strong>{{ profile.mobilityLevel || 'Pendiente' }}</strong>
             </div>
-            <div class="repeat-row" *ngFor="let medication of profile.medications; let i = index">
-              <label>
-                <span>Nombre</span>
-                <input [name]="'medicationName' + i" [(ngModel)]="medication.name">
-              </label>
-              <label>
-                <span>Horario</span>
-                <input [name]="'medicationSchedule' + i" [(ngModel)]="medication.schedule"
-                  placeholder="Ej. 8:00 am y 8:00 pm">
-              </label>
-              <label>
-                <span>Color o forma</span>
-                <input [name]="'medicationColorShape' + i" [(ngModel)]="medication.colorOrShape"
-                  placeholder="Ej. pastilla blanca redonda">
-              </label>
-              <button type="button" class="icon-button" (click)="removeMedication(i)" aria-label="Quitar medicamento">
-                -
-              </button>
+            <div>
+              <span>Positividad</span>
+              <strong>{{ profile.positivityState || 'Pendiente' }}</strong>
+            </div>
+            <div>
+              <span>Rutina</span>
+              <strong>{{ profile.wakeTime || '--:--' }} / {{ profile.sleepTime || '--:--' }}</strong>
+            </div>
+            <div>
+              <span>Contactos</span>
+              <strong>{{ profile.emergencyContacts.length }} registrados</strong>
             </div>
           </div>
-        </section>
 
-        <section class="form-section" *ngIf="currentProfileStep === 2">
-          <div class="section-heading">
-            <h2>Preferencias</h2>
-            <span>Gustos y emociones que el apoderado registra para una conversacion cercana.</span>
+          <div class="preview-note">
+            <span>Color favorito</span>
+            <strong>{{ profile.favoriteColor || 'Sin registrar' }}</strong>
           </div>
-          <div class="form-grid">
-            <label>
-              <span>Color de agrado</span>
-              <input name="favoriteColor" [(ngModel)]="profile.favoriteColor">
-            </label>
-            <label>
-              <span>Tema especifico de gusto particular</span>
-              <input name="favoriteTheme" [(ngModel)]="profile.favoriteTheme"
-                placeholder="Ej. futbol, musica criolla, cocina">
-            </label>
-            <label class="wide">
-              <span>Actividades especificas diarias</span>
-              <textarea name="dailyActivities" [(ngModel)]="profile.dailyActivities" rows="3"></textarea>
-            </label>
-            <label class="wide">
-              <span>Actividades especificas semanales</span>
-              <textarea name="weeklyActivities" [(ngModel)]="profile.weeklyActivities" rows="3"></textarea>
-            </label>
-            <label class="wide">
-              <span>Cosas especificas que dan felicidad</span>
-              <textarea name="happinessTriggers" [(ngModel)]="profile.happinessTriggers" rows="3"></textarea>
-            </label>
-            <label class="wide">
-              <span>Cosas especificas que relajan</span>
-              <textarea name="relaxationTriggers" [(ngModel)]="profile.relaxationTriggers" rows="3"></textarea>
-            </label>
-            <label class="wide">
-              <span>Cosas especificas que dan tristeza</span>
-              <textarea name="sadnessTriggers" [(ngModel)]="profile.sadnessTriggers" rows="3"></textarea>
-            </label>
-            <label class="wide">
-              <span>Cosas especificas que molestan</span>
-              <textarea name="annoyanceTriggers" [(ngModel)]="profile.annoyanceTriggers" rows="3"></textarea>
-            </label>
-          </div>
-        </section>
 
-        <section class="form-section" *ngIf="currentProfileStep === 3">
-          <div class="section-heading">
-            <h2>Indicaciones del apoderado</h2>
-            <span>Notas que orientan como debe responder GeriaBot durante la conversacion.</span>
+          <div class="preview-note accent">
+            <span>Tema de gusto</span>
+            <strong>{{ profile.favoriteTheme || 'Sin registrar' }}</strong>
           </div>
-          <div class="form-grid">
-            <label class="wide">
-              <span>Indicaciones del apoderado</span>
-              <textarea name="caregiverNotes" [(ngModel)]="profile.caregiverNotes" rows="3"></textarea>
-            </label>
-            <label class="wide">
-              <span>Frases o temas utiles para el adulto mayor</span>
-              <textarea name="seniorNotes" [(ngModel)]="profile.seniorNotes" rows="3"></textarea>
-            </label>
-          </div>
-        </section>
+        </aside>
 
-        <section class="form-section" *ngIf="currentProfileStep === 4">
-          <div class="section-heading">
-            <h2>Contactos de emergencia</h2>
-            <span>Contactos que GeriaBot debe tener presentes ante una emergencia.</span>
+        <div class="form-stack">
+          <div class="wizard-card" aria-label="Progreso del registro">
+            <button type="button" *ngFor="let step of profileSteps; let i = index" class="step-pill"
+              [class.active]="currentProfileStep === i" [class.done]="currentProfileStep > i"
+              (click)="goToProfileStep(i)">
+              <span>{{ i + 1 }}</span>
+              {{ step }}
+            </button>
           </div>
-          <div class="repeat-block">
-            <div class="repeat-heading">
-              <h3>Lista de contactos</h3>
-              <button type="button" class="ghost-button" (click)="addEmergencyContact()">Agregar</button>
+
+          <section class="form-section" *ngIf="currentProfileStep === 0">
+            <div class="section-heading">
+              <h2>Datos personales</h2>
+              <span>Estos datos los completa el apoderado para personalizar la conversacion.</span>
             </div>
-            <div class="repeat-row" *ngFor="let contact of profile.emergencyContacts; let i = index">
+            <div class="form-grid">
               <label>
-                <span>Nombre</span>
-                <input [name]="'contactName' + i" [(ngModel)]="contact.name" required>
+                <span>Nombre del adulto mayor</span>
+                <input name="personName" [(ngModel)]="profile.personName" required>
               </label>
               <label>
-                <span>Parentesco o relacion</span>
-                <input [name]="'contactRelationship' + i" [(ngModel)]="contact.relationship">
+                <span>Como debe llamarlo GeriaBot</span>
+                <input name="nickname" [(ngModel)]="profile.nickname">
               </label>
               <label>
-                <span>Telefono</span>
-                <input [name]="'contactPhone' + i" [(ngModel)]="contact.phone" required>
+                <span>Nivel de movilidad</span>
+                <select name="mobilityLevel" [(ngModel)]="profile.mobilityLevel">
+                  <option value="">Seleccionar</option>
+                  <option>Independiente</option>
+                  <option>Requiere apoyo leve</option>
+                  <option>Requiere apoyo constante</option>
+                  <option>Usa silla de ruedas</option>
+                  <option>Permanece en cama</option>
+                </select>
               </label>
-              <button type="button" class="icon-button" (click)="removeEmergencyContact(i)" aria-label="Quitar contacto">
-                -
-              </button>
+              <label>
+                <span>Estado de positividad</span>
+                <select name="positivityState" [(ngModel)]="profile.positivityState">
+                  <option value="">Seleccionar</option>
+                  <option value="alto">Alto</option>
+                  <option value="medio">Medio</option>
+                  <option value="bajo">Bajo</option>
+                </select>
+              </label>
+              <label>
+                <span>Estado de animo general</span>
+                <input name="generalMood" [(ngModel)]="profile.generalMood"
+                  placeholder="Ej. tranquilo, alegre, ansioso">
+              </label>
+              <label>
+                <span>Habitacion donde esta mas tiempo</span>
+                <input name="mainRoom" [(ngModel)]="profile.mainRoom" placeholder="Ej. sala, dormitorio, patio">
+              </label>
+              <label class="wide">
+                <span>Particularidad</span>
+                <textarea name="particularity" [(ngModel)]="profile.particularity" rows="3"></textarea>
+              </label>
+              <label class="wide">
+                <span>Movilidad</span>
+                <textarea name="mobilityDetails" [(ngModel)]="profile.mobilityDetails" rows="3"
+                  placeholder="Detalles, apoyos, limitaciones o cuidados al moverse"></textarea>
+              </label>
             </div>
+          </section>
+
+          <section class="form-section" *ngIf="currentProfileStep === 1">
+            <div class="section-heading">
+              <h2>Salud y rutina</h2>
+              <span>Contexto privado para que GeriaBot converse con cuidado y coherencia.</span>
+            </div>
+            <div class="checks">
+              <label class="check-row">
+                <input type="checkbox" name="hasPreexistingDisease" [(ngModel)]="profile.hasPreexistingDisease">
+                <span>Enfermedad preexistente</span>
+              </label>
+              <label class="check-row">
+                <input type="checkbox" name="requiresMedication" [(ngModel)]="profile.requiresMedication">
+                <span>Requiere medicacion</span>
+              </label>
+            </div>
+            <div class="form-grid">
+              <label class="wide" *ngIf="profile.hasPreexistingDisease">
+                <span>Indicar enfermedad preexistente</span>
+                <textarea name="preexistingDisease" [(ngModel)]="profile.preexistingDisease" rows="2"></textarea>
+              </label>
+              <label>
+                <span>Horario habitual de levantarse</span>
+                <input type="time" name="wakeTime" [(ngModel)]="profile.wakeTime">
+              </label>
+              <label>
+                <span>Horario habitual de acostarse</span>
+                <input type="time" name="sleepTime" [(ngModel)]="profile.sleepTime">
+              </label>
+            </div>
+
+            <div class="repeat-block" *ngIf="profile.requiresMedication">
+              <div class="repeat-heading">
+                <h3>Medicamentos</h3>
+                <button type="button" class="ghost-button" (click)="addMedication()">Agregar</button>
+              </div>
+              <div class="repeat-row" *ngFor="let medication of profile.medications; let i = index">
+                <label>
+                  <span>Nombre</span>
+                  <input [name]="'medicationName' + i" [(ngModel)]="medication.name">
+                </label>
+                <label>
+                  <span>Horario</span>
+                  <input type="time" [name]="'medicationSchedule' + i" [(ngModel)]="medication.schedule"
+                    [attr.aria-label]="'Seleccionar horario de ' + (medication.name || 'medicamento')">
+                </label>
+                <label>
+                  <span>Color o forma</span>
+                  <input [name]="'medicationColorShape' + i" [(ngModel)]="medication.colorOrShape"
+                    placeholder="Ej. pastilla blanca redonda">
+                </label>
+                <button type="button" class="icon-button" (click)="removeMedication(i)" aria-label="Quitar medicamento">
+                  -
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="form-section" *ngIf="currentProfileStep === 2">
+            <div class="section-heading">
+              <h2>Preferencias</h2>
+              <span>Gustos y emociones que el apoderado registra para una conversacion cercana.</span>
+            </div>
+            <div class="form-grid preferences-grid">
+              <label>
+                <span>Color de agrado</span>
+                <input name="favoriteColor" [(ngModel)]="profile.favoriteColor">
+              </label>
+              <label>
+                <span>Tema especifico de gusto particular</span>
+                <input name="favoriteTheme" [(ngModel)]="profile.favoriteTheme"
+                  placeholder="Ej. futbol, musica criolla, cocina">
+              </label>
+              <label>
+                <span>Actividades especificas diarias</span>
+                <textarea name="dailyActivities" [(ngModel)]="profile.dailyActivities" rows="3"></textarea>
+              </label>
+              <label>
+                <span>Actividades especificas semanales</span>
+                <textarea name="weeklyActivities" [(ngModel)]="profile.weeklyActivities" rows="3"></textarea>
+              </label>
+              <label>
+                <span>Cosas especificas que dan felicidad</span>
+                <textarea name="happinessTriggers" [(ngModel)]="profile.happinessTriggers" rows="3"></textarea>
+              </label>
+              <label>
+                <span>Cosas especificas que relajan</span>
+                <textarea name="relaxationTriggers" [(ngModel)]="profile.relaxationTriggers" rows="3"></textarea>
+              </label>
+              <label>
+                <span>Cosas especificas que dan tristeza</span>
+                <textarea name="sadnessTriggers" [(ngModel)]="profile.sadnessTriggers" rows="3"></textarea>
+              </label>
+              <label>
+                <span>Cosas especificas que molestan</span>
+                <textarea name="annoyanceTriggers" [(ngModel)]="profile.annoyanceTriggers" rows="3"></textarea>
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section" *ngIf="currentProfileStep === 3">
+            <div class="section-heading">
+              <h2>Indicaciones del apoderado</h2>
+              <span>Notas que orientan como debe responder GeriaBot durante la conversacion.</span>
+            </div>
+            <div class="form-grid">
+              <label class="wide">
+                <span>Indicaciones del apoderado</span>
+                <textarea name="caregiverNotes" [(ngModel)]="profile.caregiverNotes" rows="3"></textarea>
+              </label>
+              <label class="wide">
+                <span>Frases o temas utiles para el adulto mayor</span>
+                <textarea name="seniorNotes" [(ngModel)]="profile.seniorNotes" rows="3"></textarea>
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section" *ngIf="currentProfileStep === 4">
+            <div class="section-heading">
+              <h2>Contactos de emergencia</h2>
+              <span>Contactos que GeriaBot debe tener presentes ante una emergencia.</span>
+            </div>
+            <div class="repeat-block">
+              <div class="repeat-heading">
+                <h3>Lista de contactos</h3>
+                <button type="button" class="ghost-button" (click)="addEmergencyContact()">Agregar</button>
+              </div>
+              <div class="repeat-row" *ngFor="let contact of profile.emergencyContacts; let i = index">
+                <label>
+                  <span>Nombre</span>
+                  <input [name]="'contactName' + i" [(ngModel)]="contact.name" required>
+                </label>
+                <label>
+                  <span>Parentesco o relacion</span>
+                  <input [name]="'contactRelationship' + i" [(ngModel)]="contact.relationship">
+                </label>
+                <label>
+                  <span>Telefono</span>
+                  <input [name]="'contactPhone' + i" [(ngModel)]="contact.phone" required>
+                </label>
+                <button type="button" class="icon-button" (click)="removeEmergencyContact(i)"
+                  aria-label="Quitar contacto">
+                  -
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <div class="form-actions">
+            <button type="button" class="secondary-button" (click)="resetProfile()">Limpiar</button>
+            <button type="button" class="secondary-button" (click)="previousProfileStep()"
+              [disabled]="isFirstProfileStep">
+              Anterior
+            </button>
+            <span class="saved-message" *ngIf="profileSaved">Datos guardados para GeriaBot.</span>
+            <span class="profile-save-error" *ngIf="profileSaveError" role="alert">{{ profileSaveError }}</span>
+            <button type="button" class="primary-button" *ngIf="!isLastProfileStep" (click)="nextProfileStep()">
+              Siguiente
+            </button>
+            <button type="submit" class="primary-button" *ngIf="isLastProfileStep" [disabled]="profileSaving">
+              {{ profileSaving ? 'Guardando...' : 'Guardar datos para GeriaBot' }}
+            </button>
           </div>
-        </section>
-
-        <section class="form-section" *ngIf="currentProfileStep === 5">
-          <div class="section-heading">
-            <h2>Fallos y mitigaciones</h2>
-            <span>Riesgos principales del sistema y acciones previstas para reducir impacto.</span>
-          </div>
-
-          <div class="risk-grid">
-            <article class="risk-card">
-              <h3>Microfono no disponible</h3>
-              <p><strong>Impacto:</strong> GeriaBot no puede escuchar al usuario.</p>
-              <p><strong>Mitigacion:</strong> mostrar estado claro, pedir permisos del navegador y permitir reintentar desde el boton central.</p>
-            </article>
-
-            <article class="risk-card">
-              <h3>Reconocimiento de voz impreciso</h3>
-              <p><strong>Impacto:</strong> el asistente interpreta mal la frase.</p>
-              <p><strong>Mitigacion:</strong> usar frases cortas, confirmar datos sensibles y mantener visible el estado de escucha.</p>
-            </article>
-
-            <article class="risk-card">
-              <h3>Respuesta de voz interrumpida</h3>
-              <p><strong>Impacto:</strong> el adulto mayor puede cortar una respuesta importante.</p>
-              <p><strong>Mitigacion:</strong> detectar interrupcion, cancelar speech synthesis y volver a escuchar sin bloquear la conversacion.</p>
-            </article>
-
-            <article class="risk-card">
-              <h3>Backend caido o lento</h3>
-              <p><strong>Impacto:</strong> no llegan respuestas de Gemini ni se guarda la ficha remota.</p>
-              <p><strong>Mitigacion:</strong> mostrar error legible, conservar ficha localmente y usar health check para diagnostico.</p>
-            </article>
-
-            <article class="risk-card">
-              <h3>Gemini no responde</h3>
-              <p><strong>Impacto:</strong> el asistente queda sin respuesta inteligente.</p>
-              <p><strong>Mitigacion:</strong> timeout configurado, mensaje de fallo controlado y registro de errores del backend.</p>
-            </article>
-
-            <article class="risk-card">
-              <h3>Respuesta inadecuada de IA</h3>
-              <p><strong>Impacto:</strong> podria entregar contenido poco oportuno para el adulto mayor.</p>
-              <p><strong>Mitigacion:</strong> enviar contexto de perfil, notas del apoderado y evitar usarlo como sustituto medico o de emergencia.</p>
-            </article>
-
-            <article class="risk-card">
-              <h3>Sesion expirada</h3>
-              <p><strong>Impacto:</strong> el apoderado pierde acceso a ficha remota.</p>
-              <p><strong>Mitigacion:</strong> validar token al iniciar, limpiar sesion invalida y solicitar login nuevamente.</p>
-            </article>
-
-            <article class="risk-card">
-              <h3>Contrasena incorrecta en panel</h3>
-              <p><strong>Impacto:</strong> no se puede modificar la ficha del adulto mayor.</p>
-              <p><strong>Mitigacion:</strong> bloquear la ficha detras de reautenticacion y mostrar mensaje sin exponer datos internos.</p>
-            </article>
-
-            <article class="risk-card">
-              <h3>Google Login no configurado</h3>
-              <p><strong>Impacto:</strong> el acceso con Google no aparece o no funciona.</p>
-              <p><strong>Mitigacion:</strong> detectar Client ID vacio, mostrar alternativa con correo y contrasena, y documentar variable de entorno.</p>
-            </article>
-
-            <article class="risk-card">
-              <h3>Base de datos no disponible</h3>
-              <p><strong>Impacto:</strong> no se guardan usuarios, sesiones ni perfiles remotos.</p>
-              <p><strong>Mitigacion:</strong> revisar health check, mantener almacenamiento local temporal y registrar errores de conexion.</p>
-            </article>
-
-            <article class="risk-card">
-              <h3>Perdida de datos locales</h3>
-              <p><strong>Impacto:</strong> se borra la ficha guardada en el navegador.</p>
-              <p><strong>Mitigacion:</strong> sincronizar con backend cuando haya sesion y confirmar antes de usar Limpiar.</p>
-            </article>
-
-            <article class="risk-card">
-              <h3>Datos sensibles expuestos</h3>
-              <p><strong>Impacto:</strong> informacion personal o de salud queda visible a terceros.</p>
-              <p><strong>Mitigacion:</strong> requerir login, proteger panel con contrasena, limitar mensajes de error y no publicar secretos en frontend.</p>
-            </article>
-
-            <article class="risk-card">
-              <h3>CORS o URL incorrecta</h3>
-              <p><strong>Impacto:</strong> frontend y backend no se comunican.</p>
-              <p><strong>Mitigacion:</strong> separar environments local/public/produccion y verificar origen permitido en backend.</p>
-            </article>
-
-            <article class="risk-card">
-              <h3>Despliegue mal configurado</h3>
-              <p><strong>Impacto:</strong> la app funciona localmente pero falla en produccion.</p>
-              <p><strong>Mitigacion:</strong> usar build de produccion, revisar variables de entorno y probar endpoints publicos despues de desplegar.</p>
-            </article>
-
-            <article class="risk-card">
-              <h3>Navegador incompatible</h3>
-              <p><strong>Impacto:</strong> voz, microfono o Google Identity pueden no estar disponibles.</p>
-              <p><strong>Mitigacion:</strong> mostrar mensajes de compatibilidad y priorizar Chrome/Edge actualizados para la experiencia de voz.</p>
-            </article>
-          </div>
-        </section>
-
-        <div class="form-actions">
-          <button type="button" class="secondary-button" (click)="resetProfile()">Limpiar</button>
-          <button type="button" class="secondary-button" (click)="previousProfileStep()"
-            [disabled]="isFirstProfileStep">
-            Anterior
-          </button>
-          <span class="saved-message" *ngIf="profileSaved">Datos guardados para GeriaBot.</span>
-          <button type="button" class="primary-button" *ngIf="!isLastProfileStep" (click)="nextProfileStep()">
-            Siguiente
-          </button>
-          <button type="submit" class="primary-button" *ngIf="isLastProfileStep">Guardar datos para GeriaBot</button>
         </div>
-      </div>
-    </form>
-  </section>
+      </form>
+    </section>
   </ng-container>
 </main>

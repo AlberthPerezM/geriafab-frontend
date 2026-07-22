@@ -57,12 +57,14 @@
   </section>
 
   <ng-container *ngIf="isAuthenticated">
-    <section *ngIf="!settingsOpen && !managerOpen" class="app-shell voice-stage">
+    <section *ngIf="!settingsOpen && !managerOpen && !profileSelectionOpen" class="app-shell voice-stage">
       <header class="topbar">
-        <a class="site-brand" href="/" aria-label="GeriaBot">
-          <img src="geriafab-logo.png" alt="">
-          <span>GeriaBot</span>
-        </a>
+        <div class="topbar-context">
+          <div class="site-brand" aria-label="GeriaBot">
+            <img src="geriafab-logo.png" alt="">
+            <span>GeriaBot</span>
+          </div>
+        </div>
         <div class="topbar-actions">
           <button type="button" class="music-nav-btn" (click)="recommendMusic()" [class.active]="musicLoading"
             aria-label="Recomendar música" title="Recomendar música según perfil">
@@ -83,18 +85,18 @@
               <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
               <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
-            Ficha
+            Perfiles
           </button>
-          <button type="button" class="settings-button icon-only" (click)="requestSettingsAccess()"
-            aria-label="Configuracion del adulto mayor" title="Configuracion">
+          <button type="button" class="settings-button edit-profile-button" (click)="requestSettingsAccess()"
+            aria-label="Configuración del adulto mayor" title="Configuración">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" />
-              <path
-                d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06A2 2 0 0 1 7.03 3.73l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15.5 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.38.5.7.9.9.33.17.7.27 1.1.27H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z" />
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.1h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1v4H21a1.7 1.7 0 0 0-1.6 1Z" />
             </svg>
+            Configuración
           </button>
-          <button type="button" class="logout-button" (click)="logout()">
+          <button type="button" class="logout-button" (click)="requestLogoutAccess()">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
               stroke-linecap="round" aria-hidden="true">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -305,17 +307,72 @@
       <form *ngIf="settingsUnlockOpen" class="settings-lock" (ngSubmit)="unlockSettings()">
         <div class="settings-lock-card">
           <p class="eyebrow">Panel del apoderado</p>
-          <h2>Desbloquear ficha</h2>
+          <h2>{{ settingsUnlockTarget === 'logout' ? 'Confirmar salida' : 'Desbloquear ficha' }}</h2>
           <input type="password" name="settingsPassword" [(ngModel)]="settingsPassword" autocomplete="current-password"
             placeholder="Contrasena" aria-label="Contrasena del apoderado" required>
           <p class="auth-message" *ngIf="settingsUnlockMessage">{{ settingsUnlockMessage }}</p>
           <div class="settings-lock-actions">
             <button type="button" class="secondary-button" (click)="cancelSettingsAccess()">Cancelar</button>
-            <button type="submit" class="primary-button">Entrar</button>
+            <button type="submit" class="primary-button">{{ settingsUnlockTarget === 'logout' ? 'Salir' : 'Entrar' }}</button>
           </div>
         </div>
       </form>
 
+    </section>
+
+    <section *ngIf="profileSelectionOpen" class="profile-selection-page" aria-labelledby="profileSelectionTitle">
+      <header class="profile-selection-header">
+        <div class="site-brand" aria-label="GeriaBot">
+          <img src="geriafab-logo.png" alt="">
+          <span>GeriaBot</span>
+        </div>
+        <button type="button" class="logout-button" (click)="requestLogoutAccess()">Salir</button>
+      </header>
+
+      <div class="profile-selection-content">
+        <p class="eyebrow">Panel del apoderado</p>
+        <h1 id="profileSelectionTitle">{{ profiles.length ? '¿A quién acompañaremos hoy?' : 'Registra a tu primer adulto mayor' }}</h1>
+        <p class="profile-selection-copy" *ngIf="profiles.length">
+          Elige un perfil para abrir su asistente y gestionar únicamente sus datos.
+        </p>
+        <p class="profile-selection-copy" *ngIf="!profiles.length">
+          Crea su ficha para personalizar el acompañamiento, las rutinas y los contactos de emergencia.
+        </p>
+
+        <div class="profile-choice-grid">
+          <button *ngFor="let p of profiles" type="button" class="profile-choice"
+            [class.active]="p.id === activeProfileId" (click)="selectProfile(p.id)">
+            <span class="profile-choice-avatar" aria-hidden="true">{{ (p.personName || 'A').charAt(0).toUpperCase() }}</span>
+            <strong>{{ p.personName || 'Sin nombre' }}</strong>
+            <span>{{ p.id === activeProfileId ? 'Perfil actual' : 'Abrir perfil' }}</span>
+          </button>
+
+          <button *ngIf="canAddProfile" type="button" class="profile-choice add-profile-choice" (click)="startNewProfile()">
+            <span class="add-profile-icon" aria-hidden="true">+</span>
+            <strong>{{ profiles.length ? 'Agregar otro' : 'Registrar adulto mayor' }}</strong>
+            <span>{{ profiles.length ? 'Crear una nueva ficha' : 'Comenzar su ficha' }}</span>
+          </button>
+        </div>
+
+        <p class="profile-limit-note" *ngIf="profiles.length === maxProfiles">
+          Puedes gestionar hasta {{ maxProfiles }} adultos mayores con esta cuenta.
+        </p>
+      </div>
+
+      <form *ngIf="settingsUnlockOpen" class="settings-lock" (ngSubmit)="unlockSettings()">
+        <div class="settings-lock-card">
+          <p class="eyebrow">Acción protegida</p>
+          <h2>{{ settingsUnlockTarget === 'logout' ? 'Confirmar salida' : 'Ingresa la contraseña' }}</h2>
+          <p>{{ settingsUnlockTarget === 'logout' ? 'Confirma que eres el apoderado para cerrar la sesión.' : 'Confirma que eres el apoderado para cambiar de perfil.' }}</p>
+          <input type="password" name="profileSwitchPassword" [(ngModel)]="settingsPassword"
+            autocomplete="current-password" placeholder="Contraseña del apoderado" required autofocus>
+          <p class="auth-message" *ngIf="settingsUnlockMessage" role="alert">{{ settingsUnlockMessage }}</p>
+          <div class="settings-lock-actions">
+            <button type="button" class="secondary-button" (click)="cancelSettingsAccess()">Cancelar</button>
+            <button type="submit" class="primary-button">{{ settingsUnlockTarget === 'logout' ? 'Salir' : 'Cambiar perfil' }}</button>
+          </div>
+        </div>
+      </form>
     </section>
 
     <section *ngIf="managerOpen" class="profile-page">

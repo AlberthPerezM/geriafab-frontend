@@ -60,8 +60,10 @@ export class AppComponent implements AfterViewInit {
   selectedView: 'registro' | 'asistente' = 'asistente';
   settingsOpen = false;
   managerOpen = false;
+  profileSelectionOpen = false;
   settingsUnlockOpen = false;
-  settingsUnlockTarget: 'settings' | 'manager' = 'settings';
+  settingsUnlockTarget: 'settings' | 'manager' | 'profile' | 'logout' = 'settings';
+  pendingProfileSwitchId: number | null = null;
   settingsFromManager = false;
   settingsPassword = '';
   settingsUnlockMessage = '';
@@ -191,10 +193,19 @@ export class AppComponent implements AfterViewInit {
   }
 
   logout(): void {
+    this.deactivateAssistantVoice();
     this.auth.logout();
+    this.profileSelectionOpen = false;
     this.authMessage = '';
     this.authForm.password = '';
     this.authForm.confirmPassword = '';
+  }
+
+  requestLogoutAccess(): void {
+    this.settingsUnlockTarget = 'logout';
+    this.settingsPassword = '';
+    this.settingsUnlockMessage = '';
+    this.settingsUnlockOpen = true;
   }
 
   setView(view: 'registro' | 'asistente'): void {
@@ -220,6 +231,7 @@ export class AppComponent implements AfterViewInit {
     this.settingsPassword = '';
     this.settingsUnlockMessage = '';
     this.settingsUnlockOpen = false;
+    this.pendingProfileSwitchId = null;
   }
 
   async unlockSettings(): Promise<void> {
@@ -234,8 +246,17 @@ export class AppComponent implements AfterViewInit {
     try {
       await this.api.postJson('/api/auth/login', { email, password });
       const target = this.settingsUnlockTarget;
+      const profileId = this.pendingProfileSwitchId;
       this.cancelSettingsAccess();
-      if (target === 'manager') {
+      if (target === 'logout') {
+        this.logout();
+      } else if (target === 'profile') {
+        if (profileId !== null) {
+          await this.switchProfile(profileId);
+          this.profileSelectionOpen = false;
+          this.selectedView = 'asistente';
+        }
+      } else if (target === 'manager') {
         this.openManager();
       } else {
         this.openSettings();
@@ -247,6 +268,7 @@ export class AppComponent implements AfterViewInit {
 
   /** Abre la ficha de configuracion del adulto mayor activo. */
   openSettings(fromManager = false): void {
+    this.deactivateAssistantVoice();
     this.currentProfileStep = 0;
     this.profileSaved = false;
     this.profileSaveError = '';
@@ -258,6 +280,7 @@ export class AppComponent implements AfterViewInit {
 
   /** Abre la lista de adultos mayores registrados. */
   openManager(): void {
+    this.deactivateAssistantVoice();
     this.settingsOpen = false;
     this.managerOpen = true;
     this.selectedView = 'registro';
@@ -421,7 +444,29 @@ export class AppComponent implements AfterViewInit {
       return;
     }
     this.newProfile();
+    this.profileSelectionOpen = false;
     this.openSettings(true);
+  }
+
+  async selectProfile(id: number): Promise<void> {
+    if (id === this.activeProfileId) {
+      this.profileSelectionOpen = false;
+      this.selectedView = 'asistente';
+      return;
+    }
+
+    this.pendingProfileSwitchId = id;
+    this.settingsUnlockTarget = 'profile';
+    this.settingsPassword = '';
+    this.settingsUnlockMessage = '';
+    this.settingsUnlockOpen = true;
+  }
+
+  openProfileSelection(): void {
+    this.deactivateAssistantVoice();
+    this.settingsOpen = false;
+    this.managerOpen = false;
+    this.profileSelectionOpen = true;
   }
 
   /** Desde el gestor: abre la ficha de configuracion del adulto seleccionado. */
@@ -576,6 +621,7 @@ export class AppComponent implements AfterViewInit {
       const session = await this.auth.fetchCurrentUser();
       this.auth.setSession(session.user, this.authToken);
       await this.loadProfile();
+      this.openProfileSelection();
     } catch {
       this.auth.clearSession();
       await this.loadProfile();
@@ -699,6 +745,7 @@ export class AppComponent implements AfterViewInit {
     }
 
     await this.loadProfile();
+    this.openProfileSelection();
     this.authMessage = pending
       ? 'Sesion iniciada. El borrador pertenece a otra cuenta y no se modifico.'
       : successMessage;
@@ -1279,6 +1326,9 @@ export class AppComponent implements AfterViewInit {
 
     if (
       !this.conversationEnabled ||
+      this.settingsOpen ||
+      this.managerOpen ||
+      this.profileSelectionOpen ||
       this.isThinking ||
       (purpose === 'conversation' && this.isSpeaking) ||
       (purpose === 'interruption' && !this.isSpeaking)
@@ -1509,6 +1559,42 @@ export class AppComponent implements AfterViewInit {
     if (updateStatus) {
       this.status = this.conversationEnabled ? 'listo para escuchar' : 'microfono apagado';
     }
+  }
+
+  private deactivateAssistantVoice(): void {
+    this.conversationEnabled = false;
+    this.clearRecognitionRestart();
+    this.clearInterruptionDetection();
+    this.clearPauseTimer();
+
+    const activeRecognition = this.recognition;
+    this.recognition = null;
+    if (activeRecognition) {
+      activeRecognition.onresult = null;
+      activeRecognition.onend = null;
+      activeRecognition.onerror = null;
+      activeRecognition.onspeechstart = null;
+      activeRecognition.onspeechend = null;
+      activeRecognition.onaudioend = null;
+      try {
+        activeRecognition.abort?.();
+      } catch {
+        // El reconocimiento puede haber terminado justo antes de cancelarlo.
+      }
+    }
+
+    if (window.speechSynthesis) {
+      speechSynthesis.cancel();
+    }
+
+    this.recognizing = false;
+    this.isSpeaking = false;
+    this.isThinking = false;
+    this.listenIgnoreUntil = 0;
+    this.stopSpeechMouthMotion();
+    this.assistantSpeechPhase = 'idle';
+    this.userSpeechPhase = 'idle';
+    this.status = 'microfono apagado';
   }
 
   private scheduleRecognitionRestart(delayMs: number): void {

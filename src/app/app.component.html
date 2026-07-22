@@ -3,7 +3,7 @@
     <div class="robot-login">
       <form class="auth-panel" (ngSubmit)="submitAuth()" #authNgForm="ngForm">
         <div class="auth-brand">
-          <div class="auth-logo" aria-hidden="true">G</div>
+          <img class="auth-logo" src="geriafab-logo.png" alt="">
           <strong>GeriaBot</strong>
           <p class="auth-tagline">Asistente de voz para adultos mayores</p>
         </div>
@@ -59,6 +59,10 @@
   <ng-container *ngIf="isAuthenticated">
     <section *ngIf="!settingsOpen && !managerOpen" class="app-shell voice-stage">
       <header class="topbar">
+        <a class="site-brand" href="/" aria-label="GeriaBot">
+          <img src="geriafab-logo.png" alt="">
+          <span>GeriaBot</span>
+        </a>
         <div class="topbar-actions">
           <button type="button" class="music-nav-btn" (click)="recommendMusic()" [class.active]="musicLoading"
             aria-label="Recomendar música" title="Recomendar música según perfil">

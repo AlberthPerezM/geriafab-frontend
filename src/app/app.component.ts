@@ -1870,7 +1870,13 @@ export class AppComponent implements AfterViewInit {
 
       case 'search':
         this.reply = `Abriré la ventana de música y buscaré: ${musicCommand.query}.`;
-        this.speak(this.reply, () => void this.searchMusic(musicCommand.query, true));
+        // La búsqueda no debe depender de que termine la voz sintetizada. Si el
+        // usuario interrumpe el mensaje de confirmación, `speak` no ejecuta su
+        // callback y antes la primera petición quedaba solo con el panel abierto.
+        // Iniciamos ambas acciones en paralelo para que los resultados aparezcan
+        // con la primera orden de voz.
+        this.speak(this.reply);
+        void this.searchMusic(musicCommand.query, true);
         return;
     }
   }

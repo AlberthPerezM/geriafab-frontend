@@ -84,6 +84,8 @@ export class AppComponent implements AfterViewInit {
   profileSaveError = '';
   profiles: ProfileSummary[] = [];
   activeProfileId: number | null = null;
+  profileSwitchingId: number | null = null;
+  profileManagerError = '';
   musicResults: MusicResult[] = [];
   musicQuery = '';
   musicLoading = false;
@@ -282,11 +284,13 @@ export class AppComponent implements AfterViewInit {
   openManager(): void {
     this.deactivateAssistantVoice();
     this.settingsOpen = false;
+    this.profileManagerError = '';
     this.managerOpen = true;
     this.selectedView = 'registro';
   }
 
   closeManager(): void {
+    this.profileManagerError = '';
     this.managerOpen = false;
     this.selectedView = 'asistente';
   }
@@ -497,6 +501,39 @@ export class AppComponent implements AfterViewInit {
     await this.loadActiveProfile();
     this.currentProfileStep = 0;
     this.profileSaved = true;
+  }
+
+  /** Cambia el perfil desde el panel Perfiles, previamente desbloqueado por el apoderado. */
+  async useProfile(id: number): Promise<void> {
+    if (id === this.activeProfileId || this.profileSwitchingId !== null) {
+      return;
+    }
+
+    this.profileSwitchingId = id;
+    this.profileManagerError = '';
+
+    try {
+      // Primero confirmamos que la ficha se puede cargar. Solo entonces
+      // reemplazamos el perfil activo que quedó recordado en el navegador.
+      const response = await this.profileService.get(id);
+      if (!response.profile) {
+        throw new Error('Perfil no encontrado');
+      }
+
+      this.setActiveProfileId(id);
+      this.applyLoadedProfile(response.profile);
+      this.currentProfileStep = 0;
+      this.profileSaved = true;
+      this.managerOpen = false;
+      this.selectedView = 'asistente';
+    } catch (error) {
+      this.profileManagerError = this.api.errorMessage(
+        error,
+        'No se pudo cambiar el perfil. Intenta nuevamente.',
+      );
+    } finally {
+      this.profileSwitchingId = null;
+    }
   }
 
   requestDeleteProfile(id: number): void {
@@ -867,6 +904,18 @@ export class AppComponent implements AfterViewInit {
     // Cualquier otro sonido —normalmente la propia canción entrando por el
     // micrófono— se descarta y nunca llega al asistente.
     this.enterMusicCommandMode();
+  }
+
+  /** Reproduce una canción nueva o alterna pausa/reanudación si ya está activa. */
+  toggleSongPlayback(videoId: string, event?: Event): void {
+    event?.stopPropagation();
+
+    if (this.currentVideoId !== videoId) {
+      this.playMusic(videoId);
+      return;
+    }
+
+    this.togglePlayPause();
   }
 
   private enterMusicCommandMode(): void {

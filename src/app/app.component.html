@@ -1,4 +1,4 @@
-<main>
+<main [class.profile-selection-active]="isAuthenticated && profileSelectionOpen">
   <section *ngIf="!isAuthenticated" class="auth-screen" aria-label="Acceso a GeriaBot">
     <div class="robot-login">
       <form class="auth-panel" (ngSubmit)="submitAuth()" #authNgForm="ngForm">
@@ -335,7 +335,7 @@
 
       <div class="profile-selection-content">
         <p class="eyebrow">Panel del apoderado</p>
-        <h1 id="profileSelectionTitle">{{ profiles.length ? '¿A quién acompañaremos hoy?' : 'Registra a tu primer adulto mayor' }}</h1>
+        <h1 id="profileSelectionTitle">{{ profiles.length ? '¿A quién acompañaremos hoy?' : 'Crea tu primer perfil' }}</h1>
         <p class="profile-selection-copy" *ngIf="profiles.length">
           Elige un perfil para abrir su asistente y gestionar únicamente sus datos.
         </p>
@@ -353,8 +353,8 @@
 
           <button *ngIf="canAddProfile" type="button" class="profile-choice add-profile-choice" (click)="startNewProfile()">
             <span class="add-profile-icon" aria-hidden="true">+</span>
-            <strong>{{ profiles.length ? 'Agregar otro' : 'Registrar adulto mayor' }}</strong>
-            <span>{{ profiles.length ? 'Crear una nueva ficha' : 'Comenzar su ficha' }}</span>
+            <strong>{{ profiles.length ? 'Agregar otro' : 'Crear perfil' }}</strong>
+            <span>{{ profiles.length ? 'Crear una nueva ficha' : 'Crear la primera ficha' }}</span>
           </button>
         </div>
 

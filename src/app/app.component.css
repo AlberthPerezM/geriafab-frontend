@@ -30,6 +30,15 @@ main {
   background: #f7fbfa;
 }
 
+main.profile-selection-active {
+  width: 100%;
+  min-height: 100dvh;
+  align-items: stretch;
+  justify-items: stretch;
+  padding: 0;
+  background: #eef8f6;
+}
+
 .app-shell {
   width: 100%;
   min-height: 100dvh;
@@ -675,16 +684,24 @@ h1 {
 }
 
 .profile-selection-page {
+  position: relative;
   width: 100%;
   max-width: 100%;
   min-width: 0;
   min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 20px clamp(16px, 4vw, 56px) 48px;
   background: #eef8f6;
-  overflow-x: hidden;
+  overflow: auto;
 }
 
 .profile-selection-header {
+  position: absolute;
+  top: 20px;
+  left: clamp(16px, 4vw, 56px);
+  right: clamp(16px, 4vw, 56px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -693,7 +710,8 @@ h1 {
 .profile-selection-content {
   width: min(900px, 100%);
   min-width: 0;
-  margin: clamp(48px, 10vh, 110px) auto 0;
+  margin: 0 auto;
+  padding: 0;
   text-align: center;
 }
 
@@ -768,16 +786,27 @@ h1 {
 
 @media (max-width: 700px) {
   .profile-selection-page { padding: 16px 16px 36px; }
-  .profile-selection-header { position: relative; min-height: 42px; }
+  .profile-selection-header { top: 16px; left: 16px; right: 16px; min-height: 42px; }
   .profile-selection-header .site-brand { margin-inline: auto; }
   .profile-selection-header .logout-button { position: absolute; right: 0; }
-  .profile-selection-content { margin-top: 34px; }
+  .profile-selection-content { padding: 0; }
   .profile-selection-content h1 { font-size: clamp(25px, 8vw, 34px); }
   .profile-selection-copy { font-size: 14px; }
   .profile-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .profile-choice { min-height: 210px; padding: 16px 8px; }
   .profile-choice-avatar, .add-profile-icon { width: 88px; height: 88px; font-size: 36px; }
   .profile-choice strong { font-size: 15px; }
+}
+
+@media (max-height: 620px) {
+  .profile-selection-page {
+    align-items: flex-start;
+  }
+
+  .profile-selection-content {
+    margin-top: 82px;
+    padding-bottom: 24px;
+  }
 }
 
 @media (max-width: 360px) {

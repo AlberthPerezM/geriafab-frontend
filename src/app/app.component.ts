@@ -621,7 +621,7 @@ export class AppComponent implements AfterViewInit {
       const session = await this.auth.fetchCurrentUser();
       this.auth.setSession(session.user, this.authToken);
       await this.loadProfile();
-      this.openProfileSelection();
+      this.openAuthenticatedHome();
     } catch {
       this.auth.clearSession();
       await this.loadProfile();
@@ -745,10 +745,29 @@ export class AppComponent implements AfterViewInit {
     }
 
     await this.loadProfile();
-    this.openProfileSelection();
+    this.openAuthenticatedHome();
     this.authMessage = pending
       ? 'Sesion iniciada. El borrador pertenece a otra cuenta y no se modifico.'
       : successMessage;
+  }
+
+  /**
+   * Abre GeriaBot con el perfil activo recordado. El selector de perfiles se
+   * reserva para cuando el apoderado decida entrar a Perfiles; no debe
+   * interrumpir cada inicio o restauracion de sesion.
+   */
+  private openAuthenticatedHome(): void {
+    this.profileSelectionOpen = false;
+    this.managerOpen = false;
+
+    if (this.profiles.length === 0) {
+      this.newProfile();
+      this.startPersonalization();
+      return;
+    }
+
+    this.settingsOpen = false;
+    this.selectedView = 'asistente';
   }
 
   private async registerWithEmail(): Promise<void> {

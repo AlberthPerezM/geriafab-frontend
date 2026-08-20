@@ -280,12 +280,13 @@ export class AppComponent implements AfterViewInit {
     this.selectedView = 'registro';
   }
 
-  /** Abre la lista de adultos mayores registrados. */
+  /** Abre Perfiles con sus tarjetas tipo Netflix, después de validar al apoderado. */
   openManager(): void {
     this.deactivateAssistantVoice();
     this.settingsOpen = false;
     this.profileManagerError = '';
-    this.managerOpen = true;
+    this.managerOpen = false;
+    this.profileSelectionOpen = true;
     this.selectedView = 'registro';
   }
 
@@ -459,11 +460,11 @@ export class AppComponent implements AfterViewInit {
       return;
     }
 
-    this.pendingProfileSwitchId = id;
-    this.settingsUnlockTarget = 'profile';
-    this.settingsPassword = '';
-    this.settingsUnlockMessage = '';
-    this.settingsUnlockOpen = true;
+    // Esta pantalla solo se abre después de validar la contraseña al pulsar
+    // Perfiles, por lo que no pedimos la misma contraseña una segunda vez.
+    await this.switchProfile(id);
+    this.profileSelectionOpen = false;
+    this.selectedView = 'asistente';
   }
 
   openProfileSelection(): void {

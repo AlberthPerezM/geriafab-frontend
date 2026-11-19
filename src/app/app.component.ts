@@ -37,6 +37,7 @@ export class AppComponent implements AfterViewInit {
   private recognition: SpeechRecognitionInstance | null = null;
   private resumeVoiceAfterPanel = false;
   private voiceGeneration = 0;
+  private pendingPromptController: AbortController | null = null;
   private listenIgnoreUntil = 0;
   private speechInterrupted = false;
   private pauseTimer: number | null = null;
@@ -884,8 +885,11 @@ export class AppComponent implements AfterViewInit {
     // Abrimos el panel de una vez para que también se vean los mensajes de error.
     this.showMusicPanel = true;
 
+    const voiceGeneration = this.voiceGeneration;
     try {
-      this.musicResults = await this.musicService.search(q);
+      const results = await this.musicService.search(q);
+      if (voiceTriggered && voiceGeneration !== this.voiceGeneration) return;
+      this.musicResults = results;
       if (this.musicResults.length === 0) {
         this.musicError = 'No se encontraron resultados para esa búsqueda.';
         this.showMusicPanel = true;
@@ -1669,6 +1673,8 @@ export class AppComponent implements AfterViewInit {
 
   private deactivateAssistantVoice(): void {
     this.voiceGeneration++;
+    this.pendingPromptController?.abort();
+    this.pendingPromptController = null;
     this.conversationEnabled = false;
     this.clearRecognitionRestart();
     this.clearInterruptionDetection();
@@ -1859,6 +1865,7 @@ export class AppComponent implements AfterViewInit {
     // conversación no se quede colgada en "pensando".
     const voiceGeneration = this.voiceGeneration;
     const controller = new AbortController();
+    this.pendingPromptController = controller;
     const timeoutId = window.setTimeout(() => controller.abort(), 25000);
 
     try {
@@ -1897,6 +1904,7 @@ export class AppComponent implements AfterViewInit {
       this.speak(this.reply);
     } finally {
       window.clearTimeout(timeoutId);
+      if (this.pendingPromptController === controller) this.pendingPromptController = null;
     }
   }
 

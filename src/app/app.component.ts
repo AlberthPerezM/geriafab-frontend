@@ -35,6 +35,8 @@ export class AppComponent implements AfterViewInit {
 
   private readonly apiUrl = `${environment.apiBaseUrl}/api/gemini`;
   private recognition: SpeechRecognitionInstance | null = null;
+  private resumeVoiceAfterPanel = false;
+  private voiceGeneration = 0;
   private listenIgnoreUntil = 0;
   private speechInterrupted = false;
   private pauseTimer: number | null = null;
@@ -196,6 +198,7 @@ export class AppComponent implements AfterViewInit {
 
   logout(): void {
     this.deactivateAssistantVoice();
+    this.resumeVoiceAfterPanel = false;
     this.auth.logout();
     this.profileSelectionOpen = false;
     this.authMessage = '';
@@ -204,6 +207,7 @@ export class AppComponent implements AfterViewInit {
   }
 
   requestLogoutAccess(): void {
+    this.suspendAssistantVoice();
     this.settingsUnlockTarget = 'logout';
     this.settingsPassword = '';
     this.settingsUnlockMessage = '';
@@ -215,6 +219,7 @@ export class AppComponent implements AfterViewInit {
   }
 
   requestSettingsAccess(): void {
+    this.suspendAssistantVoice();
     this.settingsUnlockTarget = 'settings';
     this.settingsPassword = '';
     this.settingsUnlockMessage = '';
@@ -223,17 +228,19 @@ export class AppComponent implements AfterViewInit {
 
   /** Abre el gestor "Ficha de adulto mayor" (lista con editar/eliminar/nuevo). */
   requestManagerAccess(): void {
+    this.suspendAssistantVoice();
     this.settingsUnlockTarget = 'manager';
     this.settingsPassword = '';
     this.settingsUnlockMessage = '';
     this.settingsUnlockOpen = true;
   }
 
-  cancelSettingsAccess(): void {
+  cancelSettingsAccess(resumeVoice = true): void {
     this.settingsPassword = '';
     this.settingsUnlockMessage = '';
     this.settingsUnlockOpen = false;
     this.pendingProfileSwitchId = null;
+    if (resumeVoice) this.resumeAssistantVoice();
   }
 
   async unlockSettings(): Promise<void> {
@@ -249,7 +256,7 @@ export class AppComponent implements AfterViewInit {
       await this.api.postJson('/api/auth/login', { email, password });
       const target = this.settingsUnlockTarget;
       const profileId = this.pendingProfileSwitchId;
-      this.cancelSettingsAccess();
+      this.cancelSettingsAccess(false);
       if (target === 'logout') {
         this.logout();
       } else if (target === 'profile') {
@@ -257,6 +264,7 @@ export class AppComponent implements AfterViewInit {
           await this.switchProfile(profileId);
           this.profileSelectionOpen = false;
           this.selectedView = 'asistente';
+          this.resumeAssistantVoice();
         }
       } else if (target === 'manager') {
         this.openManager();
@@ -270,7 +278,7 @@ export class AppComponent implements AfterViewInit {
 
   /** Abre la ficha de configuracion del adulto mayor activo. */
   openSettings(fromManager = false): void {
-    this.deactivateAssistantVoice();
+    this.suspendAssistantVoice();
     this.currentProfileStep = 0;
     this.profileSaved = false;
     this.profileSaveError = '';
@@ -282,7 +290,7 @@ export class AppComponent implements AfterViewInit {
 
   /** Abre Perfiles con sus tarjetas tipo Netflix, después de validar al apoderado. */
   openManager(): void {
-    this.deactivateAssistantVoice();
+    this.suspendAssistantVoice();
     this.settingsOpen = false;
     this.profileManagerError = '';
     this.managerOpen = false;
@@ -294,9 +302,11 @@ export class AppComponent implements AfterViewInit {
     this.profileManagerError = '';
     this.managerOpen = false;
     this.selectedView = 'asistente';
+    this.resumeAssistantVoice();
   }
 
   startPersonalization(): void {
+    this.suspendAssistantVoice();
     this.currentProfileStep = 0;
     this.profileSaved = false;
     this.profileSaveError = '';
@@ -311,6 +321,7 @@ export class AppComponent implements AfterViewInit {
       this.openManager();
     } else {
       this.selectedView = 'asistente';
+      this.resumeAssistantVoice();
     }
   }
 
@@ -430,6 +441,7 @@ export class AppComponent implements AfterViewInit {
     this.managerOpen = false;
     this.settingsFromManager = false;
     this.selectedView = 'asistente';
+    this.resumeAssistantVoice();
   }
 
   resetProfile(): void {
@@ -457,6 +469,7 @@ export class AppComponent implements AfterViewInit {
     if (id === this.activeProfileId) {
       this.profileSelectionOpen = false;
       this.selectedView = 'asistente';
+      this.resumeAssistantVoice();
       return;
     }
 
@@ -465,10 +478,11 @@ export class AppComponent implements AfterViewInit {
     await this.switchProfile(id);
     this.profileSelectionOpen = false;
     this.selectedView = 'asistente';
+    this.resumeAssistantVoice();
   }
 
   openProfileSelection(): void {
-    this.deactivateAssistantVoice();
+    this.suspendAssistantVoice();
     this.settingsOpen = false;
     this.managerOpen = false;
     this.profileSelectionOpen = true;
@@ -1405,6 +1419,7 @@ export class AppComponent implements AfterViewInit {
       this.settingsOpen ||
       this.managerOpen ||
       this.profileSelectionOpen ||
+      this.settingsUnlockOpen ||
       this.isThinking ||
       (purpose === 'conversation' && this.isSpeaking) ||
       (purpose === 'interruption' && !this.isSpeaking)
@@ -1637,7 +1652,23 @@ export class AppComponent implements AfterViewInit {
     }
   }
 
+  private suspendAssistantVoice(): void {
+    this.resumeVoiceAfterPanel ||= this.conversationEnabled;
+    this.deactivateAssistantVoice();
+  }
+
+  private resumeAssistantVoice(): void {
+    if (this.settingsOpen || this.managerOpen || this.profileSelectionOpen || this.settingsUnlockOpen) return;
+    const shouldResume = this.resumeVoiceAfterPanel;
+    this.resumeVoiceAfterPanel = false;
+    if (shouldResume) {
+      this.conversationEnabled = true;
+      this.startRecognition();
+    }
+  }
+
   private deactivateAssistantVoice(): void {
+    this.voiceGeneration++;
     this.conversationEnabled = false;
     this.clearRecognitionRestart();
     this.clearInterruptionDetection();
@@ -1826,6 +1857,7 @@ export class AppComponent implements AfterViewInit {
 
     // Cortafuegos: si el backend no responde en 25 s abortamos para que la
     // conversación no se quede colgada en "pensando".
+    const voiceGeneration = this.voiceGeneration;
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 25000);
 
@@ -1837,6 +1869,7 @@ export class AppComponent implements AfterViewInit {
         signal: controller.signal,
       });
       const textReply = await response.text();
+      if (voiceGeneration !== this.voiceGeneration) return;
 
       if (!response.ok) {
         this.reply = 'Tuve un problema para responder. ¿Puedes repetirlo?';
@@ -1855,6 +1888,7 @@ export class AppComponent implements AfterViewInit {
       this.reply = cleanReply;
       this.speak(cleanReply);
     } catch (error) {
+      if (voiceGeneration !== this.voiceGeneration) return;
       const aborted = error instanceof DOMException && error.name === 'AbortError';
       this.reply = aborted
         ? 'Estoy tardando en responder. Intenta de nuevo, por favor.'
@@ -1975,6 +2009,7 @@ export class AppComponent implements AfterViewInit {
   }
 
   private speak(text: string, afterSpeech?: () => void): void {
+    if (this.settingsOpen || this.managerOpen || this.profileSelectionOpen || this.settingsUnlockOpen) return;
     if (!window.speechSynthesis) {
       this.finishThinking();
       afterSpeech?.();
@@ -2153,8 +2188,10 @@ export class AppComponent implements AfterViewInit {
       this.reply = reminder.message;
       // La alarma deja el micrófono preparado para poder apagarla por voz,
       // incluso si la conversación estaba inactiva antes del aviso.
-      this.conversationEnabled = true;
-      this.speak(`${reminder.title}. ${reminder.message}`);
+      if (!this.settingsOpen && !this.managerOpen && !this.profileSelectionOpen && !this.settingsUnlockOpen) {
+        this.conversationEnabled = true;
+        this.speak(`${reminder.title}. ${reminder.message}`);
+      }
     }
   }
 

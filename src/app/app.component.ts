@@ -108,6 +108,7 @@ export class AppComponent implements AfterViewInit {
   private reminderDragOffset: { x: number; y: number } | null = null;
   private currentMusicIndex = -1;
   profile!: SeniorProfile;
+  sessionLoading = true;
   authMode: AuthMode = 'login';
   authMessage = '';
   googleClientIdConfigured = false;
@@ -130,7 +131,7 @@ export class AppComponent implements AfterViewInit {
   ) {
     this.profile = this.profileService.createEmpty();
     this.auth.loadStored();
-    void this.restoreSession();
+    void this.restoreSession().finally(() => { this.sessionLoading = false; });
   }
 
   ngAfterViewInit(): void {
@@ -754,11 +755,14 @@ export class AppComponent implements AfterViewInit {
       return;
     }
 
+    this.sessionLoading = true;
     try {
       await this.auth.loginWithGoogle(response.credential);
       await this.finishLogin('Sesion iniciada con Google.');
     } catch (error) {
       this.authMessage = this.api.errorMessage(error, 'No se pudo iniciar sesion con Google.');
+    } finally {
+      this.sessionLoading = false;
     }
   }
 
@@ -771,11 +775,14 @@ export class AppComponent implements AfterViewInit {
       return;
     }
 
+    this.sessionLoading = true;
     try {
       await this.auth.login(email, password);
       await this.finishLogin('Sesion iniciada.');
     } catch (error) {
       this.authMessage = this.api.errorMessage(error, 'Correo o contrasena incorrectos.');
+    } finally {
+      this.sessionLoading = false;
     }
   }
 
@@ -856,6 +863,7 @@ export class AppComponent implements AfterViewInit {
       return;
     }
 
+    this.sessionLoading = true;
     try {
       await this.auth.register(name, email, password);
       await this.loadProfile();
@@ -863,6 +871,8 @@ export class AppComponent implements AfterViewInit {
       this.authMessage = 'Cuenta creada. Ahora crea el perfil del adulto mayor.';
     } catch (error) {
       this.authMessage = this.api.errorMessage(error, 'No se pudo crear el registro.');
+    } finally {
+      this.sessionLoading = false;
     }
   }
 

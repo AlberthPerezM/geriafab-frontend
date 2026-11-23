@@ -132,7 +132,7 @@ export class AppComponent implements AfterViewInit {
   ) {
     this.profile = this.profileService.createEmpty();
     this.auth.loadStored();
-    void this.restoreSession().finally(() => { this.sessionLoading = false; });
+    void this.restoreSession().finally(() => this.zone.run(() => { this.sessionLoading = false; }));
   }
 
   ngAfterViewInit(): void {
@@ -677,6 +677,7 @@ export class AppComponent implements AfterViewInit {
       if (this.authToken === token) this.openRestoredSession();
     } catch (error) {
       if (this.authToken !== token) return;
+      this.sessionLoadError = true;
       console.error('No se pudo restaurar la sesión', error);
       const cached = this.profileService.loadLocal();
       const storedId = this.profileService.getStoredActiveId();
@@ -765,7 +766,7 @@ export class AppComponent implements AfterViewInit {
       this.sessionLoadError = this.isAuthenticated;
       this.authMessage = this.api.errorMessage(error, 'No se pudo iniciar sesion con Google.');
     } finally {
-      this.sessionLoading = false;
+      this.zone.run(() => { this.sessionLoading = false; });
     }
   }
 
@@ -786,7 +787,7 @@ export class AppComponent implements AfterViewInit {
       this.sessionLoadError = this.isAuthenticated;
       this.authMessage = this.api.errorMessage(error, 'Correo o contrasena incorrectos.');
     } finally {
-      this.sessionLoading = false;
+      this.zone.run(() => { this.sessionLoading = false; });
     }
   }
 
@@ -841,7 +842,7 @@ export class AppComponent implements AfterViewInit {
     try {
       await this.restoreSession();
     } finally {
-      this.sessionLoading = false;
+      this.zone.run(() => { this.sessionLoading = false; });
     }
   }
 
@@ -875,7 +876,7 @@ export class AppComponent implements AfterViewInit {
       this.sessionLoadError = this.isAuthenticated;
       this.authMessage = this.api.errorMessage(error, 'No se pudo crear el registro.');
     } finally {
-      this.sessionLoading = false;
+      this.zone.run(() => { this.sessionLoading = false; });
     }
   }
 

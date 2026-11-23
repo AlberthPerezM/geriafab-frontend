@@ -1,5 +1,14 @@
 <main [class.profile-selection-active]="isAuthenticated && profileSelectionOpen">
-  <p *ngIf="sessionLoading" role="status" aria-live="polite">Cargando tu cuenta...</p>
+  <div *ngIf="sessionLoading" class="session-loading" role="status" aria-live="polite">
+    <div class="session-loading-content">
+      <div class="session-loading-brand">
+        <img src="geriafab-logo.png" alt="">
+        <strong>GeriaBot</strong>
+      </div>
+      <span class="session-loading-spinner" aria-hidden="true"></span>
+      <p>Preparando tu cuenta...</p>
+    </div>
+  </div>
   <div *ngIf="!sessionLoading && sessionLoadError" role="alert">
     <p>{{ authMessage }}</p>
     <button type="button" class="primary-button" (click)="retrySession()">Reintentar</button>

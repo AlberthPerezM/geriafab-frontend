@@ -109,6 +109,7 @@ export class AppComponent implements AfterViewInit {
   private currentMusicIndex = -1;
   profile!: SeniorProfile;
   sessionLoading = true;
+  sessionLoadError = false;
   authMode: AuthMode = 'login';
   authMessage = '';
   googleClientIdConfigured = false;
@@ -206,6 +207,7 @@ export class AppComponent implements AfterViewInit {
     this.deactivateAssistantVoice();
     this.resumeVoiceAfterPanel = false;
     this.auth.logout();
+    this.sessionLoadError = false;
     this.profileSelectionOpen = false;
     this.authMessage = '';
     this.authForm.password = '';
@@ -760,6 +762,7 @@ export class AppComponent implements AfterViewInit {
       await this.auth.loginWithGoogle(response.credential);
       await this.finishLogin('Sesion iniciada con Google.');
     } catch (error) {
+      this.sessionLoadError = this.isAuthenticated;
       this.authMessage = this.api.errorMessage(error, 'No se pudo iniciar sesion con Google.');
     } finally {
       this.sessionLoading = false;
@@ -780,6 +783,7 @@ export class AppComponent implements AfterViewInit {
       await this.auth.login(email, password);
       await this.finishLogin('Sesion iniciada.');
     } catch (error) {
+      this.sessionLoadError = this.isAuthenticated;
       this.authMessage = this.api.errorMessage(error, 'Correo o contrasena incorrectos.');
     } finally {
       this.sessionLoading = false;
@@ -827,20 +831,18 @@ export class AppComponent implements AfterViewInit {
     if (!this.profiles.length) this.openSettings();
   }
 
-  /**
-   * Una recarga conserva el perfil activo. Si la cuenta aún no tiene perfiles,
-   * mantiene visible la opción para crear el primero.
-   */
   private openRestoredSession(): void {
-    if (this.profiles.length === 0) {
-      this.openAuthenticatedHome();
-      return;
-    }
+    this.openAuthenticatedHome();
+  }
 
-    this.profileSelectionOpen = false;
-    this.managerOpen = false;
-    this.settingsOpen = false;
-    this.selectedView = 'asistente';
+  async retrySession(): Promise<void> {
+    this.sessionLoading = true;
+    this.sessionLoadError = false;
+    try {
+      await this.restoreSession();
+    } finally {
+      this.sessionLoading = false;
+    }
   }
 
   private async registerWithEmail(): Promise<void> {
@@ -870,6 +872,7 @@ export class AppComponent implements AfterViewInit {
       this.openAuthenticatedHome();
       this.authMessage = 'Cuenta creada. Ahora crea el perfil del adulto mayor.';
     } catch (error) {
+      this.sessionLoadError = this.isAuthenticated;
       this.authMessage = this.api.errorMessage(error, 'No se pudo crear el registro.');
     } finally {
       this.sessionLoading = false;

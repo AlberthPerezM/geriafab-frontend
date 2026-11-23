@@ -57,6 +57,7 @@
   </section>
 
   <ng-container *ngIf="isAuthenticated">
+    <p *ngIf="authMessage" role="status" class="auth-message">{{ authMessage }}</p>
     <section *ngIf="!settingsOpen && !managerOpen && !profileSelectionOpen" class="app-shell voice-stage">
       <header class="topbar">
         <div class="topbar-context">

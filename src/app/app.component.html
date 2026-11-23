@@ -24,10 +24,10 @@
         </div>
 
         <div class="auth-tabs" aria-label="Acceso y registro">
-          <button type="button" [class.active]="authMode === 'login'" (click)="setAuthMode('login')">
+          <button type="button" [disabled]="authSubmitting" [class.active]="authMode === 'login'" (click)="setAuthMode('login')">
             Login
           </button>
-          <button type="button" [class.active]="authMode === 'registro'" (click)="setAuthMode('registro')">
+          <button type="button" [disabled]="authSubmitting" [class.active]="authMode === 'registro'" (click)="setAuthMode('registro')">
             Registro
           </button>
         </div>
@@ -46,8 +46,8 @@
           [(ngModel)]="authForm.confirmPassword" autocomplete="new-password" placeholder="Confirmar contrasena"
           aria-label="Confirmar contrasena" required>
 
-        <button type="submit" class="primary-button auth-submit">
-          {{ authMode === 'login' ? 'Entrar' : 'Crear cuenta' }}
+        <button type="submit" class="primary-button auth-submit" [disabled]="authSubmitting">
+          {{ authSubmitting ? 'Verificando...' : authMode === 'login' ? 'Entrar' : 'Crear cuenta' }}
         </button>
 
         <ng-container *ngIf="showGoogleLogin">

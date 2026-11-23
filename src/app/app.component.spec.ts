@@ -49,4 +49,54 @@ describe('Entrada a perfiles', () => {
   it('abre la creacion al iniciar sesion sin perfiles', async () => checkEntry(false, false));
   it('muestra el selector al recuperar una sesion con perfiles', async () => checkEntry(true, true));
   it('abre la creacion al recuperar una sesion sin perfiles', async () => checkEntry(false, true));
+
+  it('mantiene el formulario visible y muestra el error si las credenciales son incorrectas', async () => {
+    let rejectLogin!: (reason: Error) => void;
+    const login = spyOn(auth, 'login').and.returnValue(new Promise((_, reject) => { rejectLogin = reject; }));
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.componentInstance.authForm.email = user.email;
+    fixture.componentInstance.authForm.password = 'incorrecta';
+    fixture.componentInstance.submitAuth();
+    fixture.componentInstance.submitAuth();
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('.auth-panel')).not.toBeNull();
+    expect(el.querySelector('.session-loading')).toBeNull();
+    expect(login).toHaveBeenCalledTimes(1);
+    expect((el.querySelector('.auth-submit') as HTMLButtonElement).disabled).toBeTrue();
+
+    rejectLogin(new Error('Correo o contrasena incorrectos.'));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    fixture.detectChanges();
+    expect(el.querySelector('.auth-panel')).not.toBeNull();
+    expect(el.querySelector('.session-loading')).toBeNull();
+    expect(el.querySelector('.auth-message')?.textContent).toContain('Correo o contrasena incorrectos.');
+    expect((el.querySelector('.auth-submit') as HTMLButtonElement).disabled).toBeFalse();
+    fixture.destroy();
+  });
+
+  it('muestra la carga de cuenta solo despues de validar las credenciales', async () => {
+    let finishProfiles!: (value: { profiles: { id: number; personName: string }[] }) => void;
+    spyOn(auth, 'login').and.callFake(async () => { auth.setSession(user, 'test-token'); return user; });
+    spyOn(profiles, 'list').and.returnValue(new Promise(resolve => { finishProfiles = resolve; }));
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.componentInstance.authForm.email = user.email;
+    fixture.componentInstance.authForm.password = 'correcta';
+    fixture.componentInstance.submitAuth();
+    await new Promise(resolve => setTimeout(resolve, 20));
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('.session-loading-spinner')).not.toBeNull();
+    expect(el.querySelector('.auth-panel')).toBeNull();
+
+    finishProfiles({ profiles: [{ id: 1, personName: 'Oscar' }] });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    fixture.detectChanges();
+    expect(el.querySelector('.profile-selection-page')).not.toBeNull();
+    fixture.destroy();
+  });
 });

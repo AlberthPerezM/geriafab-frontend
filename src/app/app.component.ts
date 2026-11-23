@@ -110,6 +110,7 @@ export class AppComponent implements AfterViewInit {
   profile!: SeniorProfile;
   sessionLoading = true;
   sessionLoadError = false;
+  authSubmitting = false;
   authMode: AuthMode = 'login';
   authMessage = '';
   googleClientIdConfigured = false;
@@ -180,6 +181,7 @@ export class AppComponent implements AfterViewInit {
   }
 
   submitAuth(): void {
+    if (this.authSubmitting) return;
     if (this.authMode === 'login') {
       void this.loginWithEmail();
       return;
@@ -758,15 +760,18 @@ export class AppComponent implements AfterViewInit {
       return;
     }
 
-    this.sessionLoading = true;
+    if (this.authSubmitting) return;
+    this.authSubmitting = true;
+    this.authMessage = '';
     try {
       await this.auth.loginWithGoogle(response.credential);
+      this.zone.run(() => { this.sessionLoading = true; });
       await this.finishLogin('Sesion iniciada con Google.');
     } catch (error) {
       this.sessionLoadError = this.isAuthenticated;
       this.authMessage = this.api.errorMessage(error, 'No se pudo iniciar sesion con Google.');
     } finally {
-      this.zone.run(() => { this.sessionLoading = false; });
+      this.zone.run(() => { this.sessionLoading = false; this.authSubmitting = false; });
     }
   }
 
@@ -779,15 +784,17 @@ export class AppComponent implements AfterViewInit {
       return;
     }
 
-    this.sessionLoading = true;
+    this.authSubmitting = true;
+    this.authMessage = '';
     try {
       await this.auth.login(email, password);
+      this.zone.run(() => { this.sessionLoading = true; });
       await this.finishLogin('Sesion iniciada.');
     } catch (error) {
       this.sessionLoadError = this.isAuthenticated;
       this.authMessage = this.api.errorMessage(error, 'Correo o contrasena incorrectos.');
     } finally {
-      this.zone.run(() => { this.sessionLoading = false; });
+      this.zone.run(() => { this.sessionLoading = false; this.authSubmitting = false; });
     }
   }
 
@@ -866,9 +873,11 @@ export class AppComponent implements AfterViewInit {
       return;
     }
 
-    this.sessionLoading = true;
+    this.authSubmitting = true;
+    this.authMessage = '';
     try {
       await this.auth.register(name, email, password);
+      this.zone.run(() => { this.sessionLoading = true; });
       await this.loadProfile();
       this.openAuthenticatedHome();
       this.authMessage = 'Cuenta creada. Ahora crea el perfil del adulto mayor.';
@@ -876,7 +885,7 @@ export class AppComponent implements AfterViewInit {
       this.sessionLoadError = this.isAuthenticated;
       this.authMessage = this.api.errorMessage(error, 'No se pudo crear el registro.');
     } finally {
-      this.zone.run(() => { this.sessionLoading = false; });
+      this.zone.run(() => { this.sessionLoading = false; this.authSubmitting = false; });
     }
   }
 

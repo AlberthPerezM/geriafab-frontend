@@ -108,6 +108,8 @@ export class AppComponent implements AfterViewInit {
   private reminderDragOffset: { x: number; y: number } | null = null;
   private currentMusicIndex = -1;
   profile!: SeniorProfile;
+  sessionLoading = true;
+  sessionLoadError = false;
   authMode: AuthMode = 'login';
   authMessage = '';
   googleClientIdConfigured = false;
@@ -130,7 +132,7 @@ export class AppComponent implements AfterViewInit {
   ) {
     this.profile = this.profileService.createEmpty();
     this.auth.loadStored();
-    void this.restoreSession();
+    void this.restoreSession().finally(() => { this.sessionLoading = false; });
   }
 
   ngAfterViewInit(): void {
@@ -205,6 +207,7 @@ export class AppComponent implements AfterViewInit {
     this.deactivateAssistantVoice();
     this.resumeVoiceAfterPanel = false;
     this.auth.logout();
+    this.sessionLoadError = false;
     this.profileSelectionOpen = false;
     this.authMessage = '';
     this.authForm.password = '';
@@ -414,16 +417,7 @@ export class AppComponent implements AfterViewInit {
     } catch (error) {
       console.error('No se pudo guardar el perfil en backend', error);
       if (this.api.isUnauthorized(error)) {
-        this.pendingProfileAfterReauth = {
-          profile: structuredClone(this.profile),
-          profileId: this.profile.id ?? this.activeProfileId,
-          email: this.authUser?.email.toLowerCase() ?? '',
-        };
-        this.auth.clearSession();
-        this.settingsOpen = false;
-        this.managerOpen = false;
-        this.authMode = 'login';
-        this.authMessage = 'Tu sesion vencio. Inicia sesion nuevamente; conservamos la ficha y la guardaremos al entrar.';
+        this.profileSaveError = 'El servidor rechazó la sesión. La ficha sigue en pantalla; vuelve a iniciar sesión para guardarla.';
         return;
       }
       this.profileSaveError = this.api.errorMessage(
@@ -623,7 +617,7 @@ export class AppComponent implements AfterViewInit {
       this.profiles = response.profiles ?? [];
     } catch (error) {
       console.error('No se pudo cargar la lista de perfiles', error);
-      this.profiles = [];
+      throw error;
     }
   }
 
@@ -669,19 +663,30 @@ export class AppComponent implements AfterViewInit {
 
   private async restoreSession(): Promise<void> {
     if (!this.authToken) {
-      this.auth.clearSession();
       await this.loadProfile();
       return;
     }
 
+    const token = this.authToken;
     try {
       const session = await this.auth.fetchCurrentUser();
-      this.auth.setSession(session.user, this.authToken);
+      // Una respuesta tardía no debe reabrir una sesión cerrada por el usuario.
+      if (this.authToken !== token) return;
+      this.auth.setSession(session.user, token);
       await this.loadProfile();
-      this.openRestoredSession();
-    } catch {
-      this.auth.clearSession();
-      await this.loadProfile();
+      if (this.authToken === token) this.openRestoredSession();
+    } catch (error) {
+      if (this.authToken !== token) return;
+      console.error('No se pudo restaurar la sesión', error);
+      const cached = this.profileService.loadLocal();
+      const storedId = this.profileService.getStoredActiveId();
+      if (cached && storedId !== null && cached.id === storedId) {
+        this.activeProfileId = storedId;
+        this.profile = cached;
+      }
+      this.authMessage = this.api.isUnauthorized(error)
+        ? 'El servidor rechazó la sesión. Inicia sesión nuevamente para acceder a tus datos.'
+        : 'No se pudo conectar con el servidor. Tu sesión sigue guardada; intenta recargar cuando vuelva la conexión.';
     }
   }
 
@@ -752,11 +757,15 @@ export class AppComponent implements AfterViewInit {
       return;
     }
 
+    this.sessionLoading = true;
     try {
       await this.auth.loginWithGoogle(response.credential);
       await this.finishLogin('Sesion iniciada con Google.');
     } catch (error) {
+      this.sessionLoadError = this.isAuthenticated;
       this.authMessage = this.api.errorMessage(error, 'No se pudo iniciar sesion con Google.');
+    } finally {
+      this.sessionLoading = false;
     }
   }
 
@@ -769,11 +778,15 @@ export class AppComponent implements AfterViewInit {
       return;
     }
 
+    this.sessionLoading = true;
     try {
       await this.auth.login(email, password);
       await this.finishLogin('Sesion iniciada.');
     } catch (error) {
+      this.sessionLoadError = this.isAuthenticated;
       this.authMessage = this.api.errorMessage(error, 'Correo o contrasena incorrectos.');
+    } finally {
+      this.sessionLoading = false;
     }
   }
 
@@ -818,17 +831,18 @@ export class AppComponent implements AfterViewInit {
     if (!this.profiles.length) this.openSettings();
   }
 
-  /**
-   * Una recarga conserva el perfil activo. Si la cuenta aún no tiene perfiles,
-   * mantiene visible la opción para crear el primero.
-   */
   private openRestoredSession(): void {
-    if (this.profiles.length === 0) {
-      this.openAuthenticatedHome();
-      return;
-    }
-
     this.openAuthenticatedHome();
+  }
+
+  async retrySession(): Promise<void> {
+    this.sessionLoading = true;
+    this.sessionLoadError = false;
+    try {
+      await this.restoreSession();
+    } finally {
+      this.sessionLoading = false;
+    }
   }
 
   private async registerWithEmail(): Promise<void> {
@@ -851,13 +865,17 @@ export class AppComponent implements AfterViewInit {
       return;
     }
 
+    this.sessionLoading = true;
     try {
       await this.auth.register(name, email, password);
       await this.loadProfile();
       this.openAuthenticatedHome();
       this.authMessage = 'Cuenta creada. Ahora crea el perfil del adulto mayor.';
     } catch (error) {
+      this.sessionLoadError = this.isAuthenticated;
       this.authMessage = this.api.errorMessage(error, 'No se pudo crear el registro.');
+    } finally {
+      this.sessionLoading = false;
     }
   }
 

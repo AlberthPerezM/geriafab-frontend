@@ -1,5 +1,11 @@
 <main [class.profile-selection-active]="isAuthenticated && profileSelectionOpen">
-  <section *ngIf="!isAuthenticated" class="auth-screen" aria-label="Acceso a GeriaBot">
+  <p *ngIf="sessionLoading" role="status" aria-live="polite">Cargando tu cuenta...</p>
+  <div *ngIf="!sessionLoading && sessionLoadError" role="alert">
+    <p>{{ authMessage }}</p>
+    <button type="button" class="primary-button" (click)="retrySession()">Reintentar</button>
+    <button type="button" class="secondary-button" (click)="logout()">Cerrar sesión</button>
+  </div>
+  <section *ngIf="!sessionLoading && !sessionLoadError && !isAuthenticated" class="auth-screen" aria-label="Acceso a GeriaBot">
     <div class="robot-login">
       <form class="auth-panel" (ngSubmit)="submitAuth()" #authNgForm="ngForm">
         <div class="auth-brand">
@@ -56,7 +62,8 @@
     </div>
   </section>
 
-  <ng-container *ngIf="isAuthenticated">
+  <ng-container *ngIf="!sessionLoading && !sessionLoadError && isAuthenticated">
+    <p *ngIf="authMessage" role="status" class="auth-message">{{ authMessage }}</p>
     <section *ngIf="!settingsOpen && !managerOpen && !profileSelectionOpen" class="app-shell voice-stage">
       <header class="topbar">
         <div class="topbar-context">

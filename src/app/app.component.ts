@@ -45,6 +45,10 @@ export class AppComponent implements AfterViewInit {
   private interruptionDetectionTimer: number | null = null;
   private speechMouthTimer: number | null = null;
   private reminderTimer: number | null = null;
+  private reminderRepeatTimer: number | null = null;
+  private reminderSpeaking = false;
+  private reminderAudio: AudioContext | null = null;
+  private readonly pendingReminders: Array<{ title: string; message: string; time: string }> = [];
   private readonly triggeredReminders = new Set<string>();
   private pendingProfileAfterReauth: { profile: SeniorProfile; profileId: number | null; email: string } | null = null;
 
@@ -807,10 +811,11 @@ export class AppComponent implements AfterViewInit {
   /** Muestra el selector después de un inicio de sesión manual. */
   private openAuthenticatedHome(): void {
     this.deactivateAssistantVoice();
-    this.profileSelectionOpen = true;
+    this.profileSelectionOpen = this.profiles.length > 0;
     this.managerOpen = false;
     this.settingsOpen = false;
     this.selectedView = 'registro';
+    if (!this.profiles.length) this.openSettings();
   }
 
   /**
@@ -823,10 +828,7 @@ export class AppComponent implements AfterViewInit {
       return;
     }
 
-    this.profileSelectionOpen = false;
-    this.managerOpen = false;
-    this.settingsOpen = false;
-    this.selectedView = 'asistente';
+    this.openAuthenticatedHome();
   }
 
   private async registerWithEmail(): Promise<void> {
@@ -1101,9 +1103,23 @@ export class AppComponent implements AfterViewInit {
   }
 
   dismissReminder(): void {
+    if (this.reminderAudio) {
+      void this.reminderAudio.close();
+      this.reminderAudio = null;
+    }
+    if (this.reminderRepeatTimer !== null) {
+      window.clearInterval(this.reminderRepeatTimer);
+      this.reminderRepeatTimer = null;
+    }
+    if (this.reminderSpeaking && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      this.reminderSpeaking = false;
+    }
     this.activeReminder = null;
     this.reminderPosition = null;
     this.reminderDragOffset = null;
+    const next = this.pendingReminders.shift();
+    if (next) this.showReminder(next);
   }
 
   startReminderDrag(event: PointerEvent): void {
@@ -1209,6 +1225,12 @@ export class AppComponent implements AfterViewInit {
       return 'open';
     }
     return null;
+  }
+
+  private isDismissReminderCommand(text: string): boolean {
+    if (!this.activeReminder) return false;
+    const t = this.normalizeCommandText(text).replace(/[^a-z0-9\s]/g, ' ');
+    return /\b(apaga|apagar|apagate|apagalo|apagala|deten|detente|detener|parar|para|parate|paralo|parala|silencia|silenciar|callate|basta|cierra|cierralo|cierrala|quita|quitalo|quitala)\b/.test(t);
   }
 
   private isCloseAnyWindowCommand(text: string): boolean {
@@ -1503,6 +1525,12 @@ export class AppComponent implements AfterViewInit {
 
         // Esperamos una frase final reconocible: onspeechstart por sí solo también
         // se dispara con golpes, gritos, televisión y eco de los parlantes.
+        if (result.isFinal !== false && this.isDismissReminderCommand(text)) {
+          this.stopRecognition(false);
+          this.interruptSpeech();
+          this.dismissReminder();
+          return;
+        }
         if (result.isFinal !== false && this.isHumanInterruption(text, alternative.confidence, speechDuration)) {
           this.transcript = text;
           this.stopRecognition(false);
@@ -2016,7 +2044,7 @@ export class AppComponent implements AfterViewInit {
     }
   }
 
-  private speak(text: string, afterSpeech?: () => void): void {
+  private speak(text: string, afterSpeech?: () => void, isReminder = false): void {
     if (this.settingsOpen || this.managerOpen || this.profileSelectionOpen || this.settingsUnlockOpen) return;
     if (!window.speechSynthesis) {
       this.finishThinking();
@@ -2032,6 +2060,7 @@ export class AppComponent implements AfterViewInit {
     this.stopRecognition(false);
 
     const utterance = new SpeechSynthesisUtterance(text);
+    this.reminderSpeaking = isReminder;
     utterance.lang = 'es-ES';
     utterance.onstart = () => this.zone.run(() => {
       this.assistantSpeechPhase = 'started';
@@ -2053,6 +2082,7 @@ export class AppComponent implements AfterViewInit {
     });
     utterance.onboundary = () => this.pulseSpeechMouth();
     utterance.onend = () => this.zone.run(() => {
+      if (isReminder) this.reminderSpeaking = false;
       this.isSpeaking = false;
       this.stopSpeechMouthMotion();
       this.clearInterruptionDetection();
@@ -2070,6 +2100,7 @@ export class AppComponent implements AfterViewInit {
       this.scheduleRecognitionRestart(300);
     });
     utterance.onerror = () => this.zone.run(() => {
+      if (isReminder) this.reminderSpeaking = false;
       this.isSpeaking = false;
       this.stopSpeechMouthMotion();
       this.clearInterruptionDetection();
@@ -2191,15 +2222,48 @@ export class AppComponent implements AfterViewInit {
       const dailyKey = `${day}-${reminder.key}`;
       if (this.triggeredReminders.has(dailyKey)) continue;
       this.triggeredReminders.add(dailyKey);
-      this.reminderPosition = null;
-      this.activeReminder = reminder;
-      this.reply = reminder.message;
-      // La alarma deja el micrófono preparado para poder apagarla por voz,
-      // incluso si la conversación estaba inactiva antes del aviso.
-      if (!this.settingsOpen && !this.managerOpen && !this.profileSelectionOpen && !this.settingsUnlockOpen) {
-        this.conversationEnabled = true;
-        this.speak(`${reminder.title}. ${reminder.message}`);
+      if (this.activeReminder) this.pendingReminders.push(reminder);
+      else this.showReminder(reminder);
+    }
+  }
+
+  private showReminder(reminder: { title: string; message: string; time: string }): void {
+    this.reminderPosition = null;
+    this.activeReminder = reminder;
+    this.reply = reminder.message;
+    this.playReminderAlarm();
+    if (!this.settingsOpen && !this.managerOpen && !this.profileSelectionOpen && !this.settingsUnlockOpen) {
+      this.conversationEnabled = true;
+      this.speak(`${reminder.title}. ${reminder.message}`, undefined, true);
+    }
+    this.reminderRepeatTimer = window.setInterval(() => {
+      if (this.activeReminder === reminder && !this.isSpeaking && !this.isThinking &&
+          this.userSpeechPhase !== 'speaking') {
+        this.playReminderAlarm();
+        this.speak(`${reminder.title}. ${reminder.message}`, undefined, true);
       }
+    }, 10000);
+  }
+
+  private playReminderAlarm(): void {
+    try {
+      if (!this.reminderAudio || this.reminderAudio.state === 'closed') this.reminderAudio = new AudioContext();
+      const audio = this.reminderAudio;
+      void audio.resume().catch(() => {});
+      const start = audio.currentTime;
+      for (let i = 0; i < 3; i++) {
+        const tone = audio.createOscillator();
+        const volume = audio.createGain();
+        tone.frequency.value = i % 2 ? 660 : 880;
+        volume.gain.setValueAtTime  (0.0001, start + i * 0.35);
+        volume.gain.exponentialRampToValueAtTime(0.18, start + i * 0.35 + 0.03);
+        volume.gain.exponentialRampToValueAtTime(0.0001, start + i * 0.35 + 0.28);
+        tone.connect(volume).connect(audio.destination);
+        tone.start(start + i * 0.35);
+        tone.stop(start + i * 0.35 + 0.3);
+      }
+    } catch (error) {
+      console.error('No se pudo reproducir el sonido de alarma', error);
     }
   }
 

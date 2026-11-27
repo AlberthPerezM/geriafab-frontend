@@ -177,7 +177,7 @@ export class AppComponent implements AfterViewInit {
     const email = this.authForm.email;
     this.setAuthMode('login');
     this.authForm.email = email;
-    this.authMessage = 'Ingresa tu contrasena para continuar con ese correo.';
+    this.authMessage = 'Ingresa tu contraseña para continuar con ese correo.';
   }
 
   submitAuth(): void {
@@ -258,7 +258,7 @@ export class AppComponent implements AfterViewInit {
     const password = this.settingsPassword;
 
     if (!email || !password) {
-      this.settingsUnlockMessage = 'Ingresa la contrasena del apoderado.';
+      this.settingsUnlockMessage = 'Ingresa la contraseña del apoderado.';
       return;
     }
 
@@ -282,7 +282,7 @@ export class AppComponent implements AfterViewInit {
         this.openSettings();
       }
     } catch (error) {
-      this.settingsUnlockMessage = this.api.errorMessage(error, 'Contrasena incorrecta.');
+      this.settingsUnlockMessage = this.api.errorMessage(error, 'Contraseña incorrecta.');
     }
   }
 
@@ -780,7 +780,7 @@ export class AppComponent implements AfterViewInit {
     const password = this.authForm.password;
 
     if (!email || !password) {
-      this.authMessage = 'Ingresa correo y contrasena.';
+      this.authMessage = 'Ingresa correo y contraseña.';
       return;
     }
 
@@ -792,7 +792,7 @@ export class AppComponent implements AfterViewInit {
       await this.finishLogin('Sesion iniciada.');
     } catch (error) {
       this.sessionLoadError = this.isAuthenticated;
-      this.authMessage = this.api.errorMessage(error, 'Correo o contrasena incorrectos.');
+      this.authMessage = this.api.errorMessage(error, 'Correo o contraseña incorrectos.');
     } finally {
       this.zone.run(() => { this.sessionLoading = false; this.authSubmitting = false; });
     }
@@ -859,17 +859,17 @@ export class AppComponent implements AfterViewInit {
     const password = this.authForm.password;
 
     if (!name || !email || !password) {
-      this.authMessage = 'Completa nombre, correo y contrasena.';
+      this.authMessage = 'Completa nombre, correo y contraseña.';
       return;
     }
 
     if (password.length < 6) {
-      this.authMessage = 'La contrasena debe tener al menos 6 caracteres.';
+      this.authMessage = 'La contraseña debe tener al menos 6 caracteres.';
       return;
     }
 
     if (password !== this.authForm.confirmPassword) {
-      this.authMessage = 'Las contrasenas no coinciden.';
+      this.authMessage = 'Las contraseñas no coinciden.';
       return;
     }
 

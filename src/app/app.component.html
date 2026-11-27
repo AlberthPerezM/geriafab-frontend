@@ -39,12 +39,12 @@
           aria-label="Correo electronico" required>
 
         <input type="password" name="authPassword" [(ngModel)]="authForm.password"
-          [attr.autocomplete]="authMode === 'login' ? 'current-password' : 'new-password'" placeholder="Contrasena"
-          aria-label="Contrasena" required>
+          [attr.autocomplete]="authMode === 'login' ? 'current-password' : 'new-password'" placeholder="Contraseña"
+          aria-label="Contraseña" required>
 
         <input *ngIf="authMode === 'registro'" type="password" name="authConfirmPassword"
-          [(ngModel)]="authForm.confirmPassword" autocomplete="new-password" placeholder="Confirmar contrasena"
-          aria-label="Confirmar contrasena" required>
+          [(ngModel)]="authForm.confirmPassword" autocomplete="new-password" placeholder="Confirmar contraseña"
+          aria-label="Confirmar contraseña" required>
 
         <button type="submit" class="primary-button auth-submit" [disabled]="authSubmitting">
           {{ authSubmitting ? 'Verificando...' : authMode === 'login' ? 'Entrar' : 'Crear cuenta' }}
@@ -329,7 +329,7 @@
           <h2>{{ settingsUnlockTarget === 'logout' ? 'Confirmar salida' : settingsUnlockTarget === 'manager' ? 'Abrir Perfiles' : 'Desbloquear ficha' }}</h2>
           <p *ngIf="settingsUnlockTarget === 'manager'">Ingresa la contraseña del apoderado para cambiar o administrar perfiles.</p>
           <input type="password" name="settingsPassword" [(ngModel)]="settingsPassword" autocomplete="current-password"
-            placeholder="Contrasena" aria-label="Contrasena del apoderado" required>
+            placeholder="Contraseña" aria-label="Contraseña del apoderado" required>
           <p class="auth-message" *ngIf="settingsUnlockMessage">{{ settingsUnlockMessage }}</p>
           <div class="settings-lock-actions">
             <button type="button" class="secondary-button" (click)="cancelSettingsAccess()">Cancelar</button>
